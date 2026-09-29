@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Groq build: icons/labels on the orange special keys are white (launcher palette). -->
+    <color name="keyboard_icon_color">#FFF5F5F5</color>
+</resources>
