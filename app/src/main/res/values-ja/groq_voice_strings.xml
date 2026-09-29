@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_toolbar_summary_hide_keyboard">キーボードを閉じます</string>
+    <string name="user_template_empty_hint">定型文が登録されていません。設定アプリの「定型文」から登録してください</string>
+</resources>

@@ -359,11 +359,19 @@ class KeyboardFontGlyphDrawable private constructor(
         }
 
         /** Returns the original resource for non-glyph icons and a font-aware wrapper otherwise. */
+        /**
+         * Per-build replacements for specific key icons (e.g. a fork showing an emoji on the
+         * symbol key). Each call gets a fresh drawable from the factory.
+         */
+        @Volatile
+        var resourceOverrides: Map<Int, (Context) -> Drawable> = emptyMap()
+
         fun create(
             context: Context,
             @DrawableRes resourceId: Int,
             snapshot: KeyboardFontSnapshot = KeyboardFontApplicator.processSnapshot,
         ): Drawable? {
+            resourceOverrides[resourceId]?.let { return it(context) }
             val original = AppCompatResources.getDrawable(context, resourceId) ?: return null
             val spec = specs[resourceId] ?: return original
             return KeyboardFontGlyphDrawable(

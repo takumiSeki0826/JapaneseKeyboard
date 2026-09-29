@@ -96,6 +96,8 @@ import androidx.core.view.inputmethod.InputConnectionCompat
 import androidx.core.view.inputmethod.InputContentInfoCompat
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
+import androidx.core.view.updateLayoutParams
+import androidx.core.view.updatePadding
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -195,6 +197,11 @@ import com.kazumaproject.listeners.ReturnToTenKeyButtonClickListener
 import com.kazumaproject.listeners.SymbolRecyclerViewItemClickListener
 import com.kazumaproject.listeners.SymbolRecyclerViewItemLongClickListener
 import com.kazumaproject.markdownhelperkeyboard.BuildConfig
+import com.kazumaproject.markdownhelperkeyboard.groq_voice.EmojiTextDrawable
+import com.kazumaproject.markdownhelperkeyboard.groq_voice.FloatingQwertySize
+import com.kazumaproject.markdownhelperkeyboard.groq_voice.GroqVoiceInput
+import com.kazumaproject.markdownhelperkeyboard.groq_voice.KeyboardSize
+import com.kazumaproject.markdownhelperkeyboard.groq_voice.RecordingState
 import com.kazumaproject.markdownhelperkeyboard.R
 import com.kazumaproject.markdownhelperkeyboard.clipboard_history.database.ClipboardHistoryItem
 import com.kazumaproject.markdownhelperkeyboard.clipboard_history.database.ItemType
@@ -766,6 +773,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     private var speechRecognizer: SpeechRecognizer? = null
     private var isListening = false
+    private var groqVoiceInput: GroqVoiceInput? = null
 
     private var enableGemmaTranslationPreference: Boolean? = false
 
@@ -2729,8 +2737,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         hideKeyboardViews(surface)
         // A source switch must neither reset this pane's tab/scroll nor cancel its loading job.
         state.symbolJob = scope.launch {
-            setSymbolsFloating(binding, if (requested.mode == SymbolMode.CLIPBOARD) SymbolMode.CLIPBOARD
-                else symbolKeyboardFirstItem ?: SymbolMode.EMOJI)
+            setSymbolsFloating(
+                binding,
+                resolveSymbolKeyboardInitialMode(requested.mode, symbolKeyboardFirstItem)
+            )
             if (splitInputs[state.slot] === state && state.symbolRequest == requested) {
                 updateFloatingKeyboardTouchEffectBounds(binding)
             }
@@ -3039,6 +3049,27 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
             shortCurRepository.initDefaultShortcutsIfNeeded()
             physicalKeyboardShortcutRepository.ensureDefaultShortcuts()
+        }
+
+        if (BuildConfig.USE_GROQ_VOICE) {
+            val symbolIconSizePx = (24 * resources.displayMetrics.density).toInt()
+            KeyboardFontGlyphDrawable.resourceOverrides = mapOf(
+                com.kazumaproject.core.R.drawable.symbol to { _ ->
+                    EmojiTextDrawable("😂", symbolIconSizePx)
+                }
+            )
+            groqVoiceInput = GroqVoiceInput(
+                context = this,
+                scope = scope,
+                onStateChanged = { state ->
+                    setSuggestionProgressVisible(
+                        reason = SuggestionProgressReason.VoiceInput,
+                        visible = state is RecordingState.Transcribing
+                    )
+                    updateShortcutActiveStates()
+                },
+                onTranscribed = ::commitGroqTranscription,
+            )
         }
 
         if (SpeechRecognizer.isRecognitionAvailable(this)) {
@@ -6003,6 +6034,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
+        groqVoiceInput?.cancel()
         physicalKeyboardPopupPositions.reset()
         modeSwitchAwaitingCursorPosition = false
         dismissJob?.cancel()
@@ -6067,6 +6099,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     }
 
     override fun onDestroy() {
+        groqVoiceInput?.release()
+        groqVoiceInput = null
         localFontScope.cancel()
         keyboardSelectionPopupWindow?.dismiss()
         stopSplitKeyboard()
@@ -6961,6 +6995,20 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
     }
 
+    /**
+     * The floating layout hard-codes a 58dp strip; the Groq build sizes it from the
+     * candidate height setting instead so the shortcut/candidate row can be compact.
+     */
+    private fun applyCompactFloatingStripHeight(binding: FloatingKeyboardLayoutBinding) {
+        val heightPx = (getKeyboardSizePreferences().candidateHeight * resources.displayMetrics.density).toInt()
+        binding.suggestionRecyclerView.updateLayoutParams<ViewGroup.LayoutParams> { height = heightPx }
+        binding.suggestionRecyclerView.updatePadding(top = 0)
+        binding.suggestionVisibility.updateLayoutParams<ViewGroup.LayoutParams> {
+            width = minOf(width, heightPx)
+            height = minOf(height, heightPx)
+        }
+    }
+
     private fun resolveFloatingKeyboardWidthPx(mode: TenKeyQWERTYMode): Int {
         val prefs = getKeyboardSizePreferences()
         val screenWidth = resources.displayMetrics.widthPixels
@@ -7101,6 +7149,22 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             // RECORD_AUDIO が許可されていないなど
             isListening = false
         }
+    }
+
+    private fun toggleGroqVoiceInput(groqVoice: GroqVoiceInput) {
+        if (groqVoice.isReadyToRecord) {
+            // Settle any pending reading as-is so the transcription is inserted after it.
+            stringInTail.set("")
+            finishComposingText()
+            setComposingText("", 0)
+            _inputString.update { "" }
+        }
+        groqVoice.toggle()
+    }
+
+    private fun commitGroqTranscription(text: String) {
+        commitText(text, 1)
+        clearDeletedBufferWithoutResetLayout()
     }
 
     private fun stopVoiceInput() {
@@ -7336,7 +7400,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         // Keep the saved theme context underneath presentation overrides. A cold launch
         // into Cupertino must still restore the user's dynamic/seed colors on return.
         val ctx = when (appPreference.theme_mode) {
-            "default" -> {
+            "default" -> if (BuildConfig.USE_GROQ_VOICE) {
+                ContextThemeWrapper(this, R.style.Theme_MarkdownKeyboard).apply {
+                    theme.applyStyle(R.style.ThemeOverlay_SumireGroq_LauncherPalette, true)
+                }
+            } else {
                 if (isDynamicColorsEnable) {
                     val seedColor = appPreference.seedColor
 
@@ -7474,6 +7542,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
         floatingKeyboardBinding?.let { floatingKeyboardLayoutBinding ->
             setFloatingKeyboardListeners(floatingKeyboardLayoutBinding = floatingKeyboardLayoutBinding)
+            if (BuildConfig.USE_GROQ_VOICE) applyCompactFloatingStripHeight(floatingKeyboardLayoutBinding)
             val heightPref = tenkeyHeightPreferenceValue ?: 280
             val widthPref = tenkeyWidthPreferenceValue ?: 100
             val keyboardMarginBottomPref = appPreference.keyboard_vertical_margin_bottom ?: 0
@@ -12772,6 +12841,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 val templateNames = templates.map { it.word }
 
                 withContext(Dispatchers.Main) {
+                    if (BuildConfig.USE_GROQ_VOICE && templates.isEmpty()) {
+                        showToastMessage(getString(R.string.user_template_empty_hint))
+                        return@withContext
+                    }
                     val inflater =
                         getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
                     val popupView =
@@ -12805,7 +12878,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         onKeyboardSwitchLongPressUp = false
                     }
 
-                    keyboardSelectionPopupWindow?.showAsDropDown(mainView.shortcutToolbarRecyclerview)
+                    // The docked toolbar is hidden while floating; anchor to the floating
+                    // keyboard's shortcut row instead so the list actually appears.
+                    val anchor = floatingKeyboardBinding
+                        ?.suggestionRecyclerView
+                        ?.takeIf { isKeyboardFloatingMode == true && it.isAttachedToWindow }
+                        ?: mainView.shortcutToolbarRecyclerview
+                    keyboardSelectionPopupWindow?.showAsDropDown(anchor)
                 }
             }
         }
@@ -17912,7 +17991,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 setKeyboardSizeSwitchKeyboard(mainView)
                 if (isKeyboardFloatingMode == true) {
                     floatingKeyboardBinding?.let { floatingKeyboardLayoutBinding ->
-                        setSymbolsFloating(floatingKeyboardLayoutBinding)
+                        // Pass the requested mode so the clipboard shortcut opens clipboard history.
+                        setSymbolsFloating(
+                            floatingKeyboardLayoutBinding,
+                            resolveSymbolKeyboardInitialMode(
+                                isSymbolKeyboardShow.mode,
+                                symbolKeyboardFirstItem
+                            )
+                        )
                         if (isSymbolKeyboardShow.isShown) {
                             hideKeyboardViews(getFloatingKeyboardSurface() ?: return@let)
                             floatingKeyboardLayoutBinding.floatingSymbolKeyboard.isVisible = true
@@ -18978,6 +19064,20 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     }
 
     private fun getKeyboardSizePreferences(): KeyboardSizePreferences {
+        val prefs = getStoredKeyboardSizePreferences()
+        val qwertySize = FloatingQwertySize.resolve(
+            matchTenkeyInFloating = BuildConfig.USE_GROQ_VOICE,
+            floating = isKeyboardFloatingMode == true,
+            tenkey = KeyboardSize(prefs.widthPref, prefs.heightPref),
+            qwerty = KeyboardSize(prefs.qwertyWidthPref, prefs.qwertyHeightPref),
+        )
+        return prefs.copy(
+            qwertyWidthPref = qwertySize.widthPercent,
+            qwertyHeightPref = qwertySize.heightDp,
+        )
+    }
+
+    private fun getStoredKeyboardSizePreferences(): KeyboardSizePreferences {
         val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         return if (isPortrait) {
             KeyboardSizePreferences(
@@ -21911,7 +22011,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         vibrate()
         closeViewsThatConflictWithKeyboardLayoutEdit()
 
-        val target = KeyboardLayoutEditTarget.from(qwertyMode.value)
+        // The Groq build shares one floating size between TenKey and QWERTY (see FloatingQwertySize).
+        val target = if (BuildConfig.USE_GROQ_VOICE && surface == KeyboardLayoutEditSurface.Floating) {
+            KeyboardLayoutEditTarget.TenKeyFamily
+        } else {
+            KeyboardLayoutEditTarget.from(qwertyMode.value)
+        }
         val orientation = currentKeyboardLayoutEditOrientation()
         val state = KeyboardLayoutEditState.Enabled(
             surface = surface,
@@ -22055,6 +22160,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             liveConversionEnabled = isLiveConversionEnable == true,
             learningPaused = learningPausedForSession,
             handwritingActive = handwritingModeActive,
+            voiceInputActive = groqVoiceInput?.isRecording == true,
         ) + dictionaryFloats?.activeShortcuts.orEmpty()
 
         shortcutAdapter?.setActiveShortcutTypes(activeTypes)
@@ -22672,6 +22778,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 toggleKeyboardLayoutEditMode(mainView)
             }
 
+            ShortcutType.HIDE_KEYBOARD -> {
+                requestHideSelf(InputMethodManager.HIDE_NOT_ALWAYS)
+            }
+
             ShortcutType.KEYBOARD_FLOATING_TOGGLE -> {
                 toggleKeyboardFloatingModeFromShortcut()
             }
@@ -22705,7 +22815,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             ShortcutType.VOICE_INPUT -> {
-                startVoiceInput(mainView)
+                val groqVoice = groqVoiceInput
+                if (groqVoice != null) {
+                    toggleGroqVoiceInput(groqVoice)
+                } else {
+                    startVoiceInput(mainView)
+                }
             }
 
             ShortcutType.GEMMA_IMAGE -> {

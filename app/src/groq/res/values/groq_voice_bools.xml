@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <bool name="keyboard_floating_default">true</bool>
+    <bool name="shortcut_toolbar_visible_default">true</bool>
+    <bool name="shortcut_toolbar_integrated_default">true</bool>
+    <bool name="flick_input_only_default">true</bool>
+    <bool name="clipboard_preview_tap_delete_default">true</bool>
+</resources>

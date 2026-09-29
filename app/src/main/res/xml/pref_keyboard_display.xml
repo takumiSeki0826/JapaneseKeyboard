@@ -76,7 +76,7 @@
             android:title="@string/composing_guide_integrated_reset" />
 
         <SwitchPreferenceCompat
-            android:defaultValue="false"
+            android:defaultValue="@bool/keyboard_floating_default"
             android:key="keyboard_floating_preference"
             android:summary="@string/keyboard_floating_preference_summary"
             android:title="@string/keyboard_floating_preference_title" />

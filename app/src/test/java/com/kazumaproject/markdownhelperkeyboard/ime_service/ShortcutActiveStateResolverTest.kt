@@ -36,6 +36,36 @@ class ShortcutActiveStateResolverTest {
 
 
     @Test
+    fun voiceInputShortcutIsActiveWhileRecording() {
+        val active = resolveShortcutActiveTypes(
+            keyboardLayoutEditActive = false,
+            keyboardFloatingActive = false,
+            inputBehavior = ResolvedInputBehavior.COMPOSING_TEXT,
+            liveConversionEnabled = false,
+            voiceInputActive = true,
+        )
+
+        assertTrue(active.contains(ShortcutType.VOICE_INPUT))
+        assertNotNull(ShortcutType.VOICE_INPUT.activeIconResId)
+        assertNotEquals(
+            ShortcutType.VOICE_INPUT.iconResId,
+            ShortcutType.VOICE_INPUT.activeIconResId,
+        )
+    }
+
+    @Test
+    fun voiceInputShortcutIsInactiveByDefault() {
+        val active = resolveShortcutActiveTypes(
+            keyboardLayoutEditActive = false,
+            keyboardFloatingActive = false,
+            inputBehavior = ResolvedInputBehavior.COMPOSING_TEXT,
+            liveConversionEnabled = false,
+        )
+
+        assertFalse(active.contains(ShortcutType.VOICE_INPUT))
+    }
+
+    @Test
     fun directCommitMarksInputBehaviorToggleActiveAndPreservesExistingActiveTypes() {
         val activeTypes = resolveShortcutActiveTypes(
             keyboardLayoutEditActive = true,

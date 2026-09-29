@@ -5,6 +5,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import com.kazumaproject.markdownhelperkeyboard.BuildConfig
 import com.kazumaproject.core.domain.state.TenKeyQWERTYMode
 import com.kazumaproject.markdownhelperkeyboard.ime_service.split_keyboard.SplitKeyboardBody
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -28,6 +29,7 @@ internal class FloatingKeyboardPanel(
     private var startBounds: GuideBounds? = null
     private var draft: KeyboardLayoutEditValues.Floating? = null
     private val keyboardBody = SplitKeyboardBody(context, dp(240), dp(180))
+    private val compactChrome = BuildConfig.USE_GROQ_VOICE
     private val input = object : FrameLayout(context) {
         override fun dispatchTouchEvent(event: MotionEvent): Boolean =
             if (editing) true else super.dispatchTouchEvent(event)
@@ -52,6 +54,11 @@ internal class FloatingKeyboardPanel(
         addView(hide, LayoutParams(dp(48), dp(48), Gravity.TOP or Gravity.START).apply {
             leftMargin = dp(8); topMargin = dp(4)
         })
+        if (compactChrome) {
+            // Hide and size-edit live in the shortcut row instead of the header.
+            hide.visibility = View.GONE
+            setHeaderVisible(false)
+        }
         listOf(binding.floatingKeyboardContainer, binding.floatingSymbolKeyboard, binding.candidatesRowView).forEach {
             (it.layoutParams as ConstraintLayout.LayoutParams).apply { bottomMargin = 0; it.layoutParams = this }
         }
@@ -61,6 +68,12 @@ internal class FloatingKeyboardPanel(
     }
 
     fun matches(other: FloatingKeyboardLayoutBinding) = binding === other
+
+    /** Like [setEditing], but in compact chrome the header (with its done button) only shows while editing. */
+    fun setLayoutEditing(value: Boolean) {
+        setEditing(value)
+        if (compactChrome) setHeaderVisible(value)
+    }
 
     fun setKeyboardMode(mode: TenKeyQWERTYMode) {
         keyboardBody.setMinimumLayoutSize(dp(when (mode) {
