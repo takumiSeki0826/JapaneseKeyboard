@@ -375,6 +375,23 @@ public class FlexboxLayoutManager extends RecyclerView.LayoutManager implements 
         return lp instanceof LayoutParams;
     }
 
+    /**
+     * RecyclerView calls this when a child's params fail {@link #checkLayoutParams}, e.g. a
+     * view created under a LinearLayoutManager. Without it the base implementation returns a
+     * plain RecyclerView.LayoutParams and the FlexItem cast in FlexboxHelper crashes.
+     */
+    @Override
+    public RecyclerView.LayoutParams generateLayoutParams(ViewGroup.LayoutParams lp) {
+        if (lp instanceof LayoutParams) {
+            return new LayoutParams((LayoutParams) lp);
+        } else if (lp instanceof RecyclerView.LayoutParams) {
+            return new LayoutParams((RecyclerView.LayoutParams) lp);
+        } else if (lp instanceof ViewGroup.MarginLayoutParams) {
+            return new LayoutParams((ViewGroup.MarginLayoutParams) lp);
+        }
+        return new LayoutParams(lp);
+    }
+
     @Override
     public void onAdapterChanged(RecyclerView.Adapter oldAdapter, RecyclerView.Adapter newAdapter) {
         removeAllViews();
