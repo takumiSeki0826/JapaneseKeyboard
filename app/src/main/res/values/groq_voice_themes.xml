@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Groq build: fixes the keyboard's Material color roles to the owner's launcher palette
+        (neutral black/gray with one orange accent) instead of seeding a tonal palette,
+        which tinted every surface brown and muted the accent. Key shapes are unchanged.
+    -->
+    <style name="ThemeOverlay.SumireGroq.LauncherPalette" parent="">
+        <item name="colorSurface">#FF1A1A1A</item>
+        <item name="colorSurfaceContainer">#FF1A1A1A</item>
+        <item name="colorSurfaceVariant">#FF333333</item>
+        <item name="colorSurfaceContainerHigh">#FF4A4A4A</item>
+        <item name="colorSurfaceContainerHighest">#FF333333</item>
+        <item name="colorSecondaryContainer">#FFD1432B</item>
+        <item name="colorSecondaryVariant">#FFA8321F</item>
+        <item name="colorOnSecondaryContainer">#FFF5F5F5</item>
+        <item name="colorPrimary">#FFD1432B</item>
+        <item name="colorOnPrimary">#FFF5F5F5</item>
+        <item name="colorOnSurface">#FFF5F5F5</item>
+        <item name="colorOnSurfaceVariant">#FF8A8A8A</item>
+        <item name="colorControlNormal">#FFF5F5F5</item>
+    </style>
+</resources>

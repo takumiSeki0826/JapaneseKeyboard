@@ -21,6 +21,7 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.GridLayout
 import android.widget.Space
@@ -32,6 +33,10 @@ import androidx.core.graphics.ColorUtils
 import com.google.android.material.R
 import com.kazumaproject.core.domain.skin.KeyboardSkinId
 import com.kazumaproject.core.ui.skin.KeyboardSkinRegistry
+import com.kazumaproject.core.ui.font.KeyboardFontAware
+import com.kazumaproject.core.ui.font.KeyboardFontApplicator
+import com.kazumaproject.core.ui.font.KeyboardFontGlyphDrawable
+import com.kazumaproject.core.ui.font.KeyboardFontSnapshot
 import com.kazumaproject.core.data.popup.TfbiFlickStartPositionMode
 import com.kazumaproject.core.data.popup.FlickPopupViewStyleSet
 import com.kazumaproject.core.data.popup.PopupViewStyle
@@ -99,7 +104,26 @@ import kotlin.math.roundToInt
 
 class FlickKeyboardView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : GridLayout(context, attrs, defStyleAttr) {
+) : GridLayout(context, attrs, defStyleAttr), KeyboardFontAware {
+
+    private var keyboardFontSnapshot = KeyboardFontApplicator.processSnapshot
+
+    override fun setKeyboardFont(snapshot: KeyboardFontSnapshot) {
+        KeyboardFontApplicator.track(this)
+        keyboardFontSnapshot = snapshot
+        for (index in 0 until childCount) {
+            KeyboardFontApplicator.applyToKeyboardViews(getChildAt(index), snapshot)
+        }
+        keyInfos.forEach { info ->
+            val button = info.view as? AppCompatImageButton ?: return@forEach
+            updateImageButtonMatrix(button, info.keyData)
+        }
+    }
+
+    override fun onViewAdded(child: View) {
+        super.onViewAdded(child)
+        KeyboardFontApplicator.applyToKeyboardViews(child, keyboardFontSnapshot)
+    }
 
     interface OnKeyboardActionListener {
         fun onPress(action: KeyAction)
@@ -196,6 +220,8 @@ class FlickKeyboardView @JvmOverloads constructor(
         IdentityHashMap<AutoSizeButton, AutoSizeButton.FlickGuideLabels>()
     private var currentLayout: KeyboardLayout? = null
     private var keyHitTestMode = KeyHitTestMode.KEY_BOUNDS
+    val activeKeyHitTestMode: KeyHitTestMode
+        get() = keyHitTestMode
     private var controllerRebindPending = false
     private var keyboardRenderRevision: Int = 0
     private var renderedKeyboardRenderRevision: Int = -1
@@ -544,6 +570,10 @@ class FlickKeyboardView @JvmOverloads constructor(
     }
 
     private fun resolveKeyVisualPalette(keyData: KeyData): KeyVisualPalette {
+        val skin = KeyboardSkinRegistry.find(keyboardSkinId)
+        if (skin != null && skinKeyRole(keyData) == com.kazumaproject.core.ui.skin.SkinKeyRole.SPACE) {
+            return KeyVisualPalette(false, skin.palette.spaceKey, skin.palette.spaceText, skin.palette.pressed)
+        }
         val usesSpecialSurface = KeyVisualStyleResolver.usesSpecialSurface(keyData)
         return if (usesSpecialSurface) {
             KeyVisualPalette(
@@ -560,6 +590,14 @@ class FlickKeyboardView @JvmOverloads constructor(
                 highlightColor = KeyboardSkinRegistry.find(keyboardSkinId)?.palette?.pressed ?: customSpecialKeyColor
             )
         }
+    }
+
+    private fun skinKeyRole(keyData: KeyData): com.kazumaproject.core.ui.skin.SkinKeyRole = when (keyData.action) {
+        KeyAction.Space, KeyAction.ForceHalfWidthSpace, KeyAction.ForceFullWidthSpace ->
+            com.kazumaproject.core.ui.skin.SkinKeyRole.SPACE
+        else -> if (KeyVisualStyleResolver.usesSpecialSurface(keyData))
+            com.kazumaproject.core.ui.skin.SkinKeyRole.MODIFIER
+        else com.kazumaproject.core.ui.skin.SkinKeyRole.CHARACTER
     }
 
     private fun defaultKeyBackgroundDrawable(keyData: KeyData, isDarkTheme: Boolean): Drawable? {
@@ -589,12 +627,17 @@ class FlickKeyboardView @JvmOverloads constructor(
     @JvmOverloads
     @SuppressLint("ClickableViewAccessibility")
     fun setKeyboard(layout: KeyboardLayout, hitTestMode: KeyHitTestMode = KeyHitTestMode.KEY_BOUNDS) {
+        setKeyHitTestMode(hitTestMode)
+        setKeyboard(layout, forceRebuild = false)
+    }
+
+    /** Changes hit testing without rebuilding the current keyboard layout. */
+    fun setKeyHitTestMode(hitTestMode: KeyHitTestMode) {
         if (keyHitTestMode != hitTestMode) {
             cancelTrackedTouchState()
             doubleTapActionDispatcher.cancel()
         }
         keyHitTestMode = hitTestMode
-        setKeyboard(layout, forceRebuild = false)
     }
 
     private fun rebuildCurrentKeyboard() {
@@ -782,7 +825,7 @@ class FlickKeyboardView @JvmOverloads constructor(
             .forEach { info ->
                 if (info.view is AppCompatImageButton) {
                     (info.view as AppCompatImageButton).apply {
-                        setImageResource(drawableResId)
+                        KeyboardFontGlyphDrawable.setImageResource(this, drawableResId, keyboardFontSnapshot)
                         applyImageButtonTint(this, info.keyData.copy(drawableResId = drawableResId))
                     }
                 }
@@ -978,7 +1021,14 @@ class FlickKeyboardView @JvmOverloads constructor(
 
         if (availableWidth <= 0f || availableHeight <= 0f) return
 
-        val targetContentSizePx = getSpecialIconTargetSizePx(keyData)
+        val customFontTextScale = if (
+            keyData.isSpecialKey && drawable is KeyboardFontGlyphDrawable && drawable.usesCustomFont
+        ) {
+            getSpecialKeyTextSizeSp() / SPECIAL_KEY_BASE_TEXT_SIZE_SP
+        } else {
+            1f
+        }
+        val targetContentSizePx = getSpecialIconTargetSizePx(keyData) * customFontTextScale
 
         val baseScale = minOf(
             targetContentSizePx / drawableWidth,
@@ -1321,7 +1371,8 @@ class FlickKeyboardView @JvmOverloads constructor(
                         } else {
                             val neumorphDrawable = getDynamicNeumorphDrawable(
                                 baseColor = visualPalette.baseColor,
-                                radius = commonCornerRadius
+                                radius = commonCornerRadius,
+                                role = skinKeyRole(keyData)
                             )
 
                             val segmentedDrawable = SegmentedBackgroundDrawable(
@@ -1383,7 +1434,8 @@ class FlickKeyboardView @JvmOverloads constructor(
                         } else {
                             val neumorphDrawable = getDynamicNeumorphDrawable(
                                 baseColor = visualPalette.baseColor,
-                                radius = commonCornerRadius
+                                radius = commonCornerRadius,
+                                role = skinKeyRole(keyData)
                             )
 
                             val segmentedDrawable = SegmentedBackgroundDrawable(
@@ -1414,8 +1466,10 @@ class FlickKeyboardView @JvmOverloads constructor(
         return keyView
     }
 
-    private fun getDynamicNeumorphDrawable(baseColor: Int, radius: Float): Drawable {
-        KeyboardSkinRegistry.find(keyboardSkinId)?.let { return it.keyDrawable(resources, qwerty = false) }
+    private fun getDynamicNeumorphDrawable(baseColor: Int, radius: Float,
+            role: com.kazumaproject.core.ui.skin.SkinKeyRole =
+                com.kazumaproject.core.ui.skin.SkinKeyRole.CHARACTER): Drawable {
+        KeyboardSkinRegistry.find(keyboardSkinId)?.let { return it.keyDrawable(resources, role = role) }
         val highlightColor = manipulateColor(baseColor, 1.2f)
         val shadowColor = manipulateColor(baseColor, 0.8f)
 
@@ -2916,8 +2970,11 @@ class FlickKeyboardView @JvmOverloads constructor(
     }
 
     private fun findTargetView(displayX: Float, displayY: Float): MotionTarget? {
-        if (keyHitTestMode == KeyHitTestMode.NEAREST_KEY) {
-            return findNearestKeyTarget(displayX, displayY)
+        when (keyHitTestMode) {
+            KeyHitTestMode.NEAREST_KEY -> return findNearestKeyTarget(displayX, displayY)
+            KeyHitTestMode.NEAREST_KEY_IN_KEY_CELLS ->
+                return findNearestKeyTarget(displayX, displayY, requireKeyCell = true)
+            KeyHitTestMode.KEY_BOUNDS -> Unit
         }
         val location = IntArray(2)
         for (i in 0 until childCount) {
@@ -2945,11 +3002,15 @@ class FlickKeyboardView @JvmOverloads constructor(
     }
 
     /**
-     * Sumire treats the entire keyboard surface as key input, independently of visual margins.
      * Read current screen bounds at DOWN (also POINTER_DOWN), never cached layout geometry.
-     * Custom layouts keep the legacy bounds-only path, including their intentional empty cells.
+     * [requireKeyCell] keeps explicit blank grid cells and spacers untouchable while allowing
+     * taps in the margins around a visible key.
      */
-    private fun findNearestKeyTarget(displayX: Float, displayY: Float): MotionTarget? {
+    private fun findNearestKeyTarget(
+        displayX: Float,
+        displayY: Float,
+        requireKeyCell: Boolean = false
+    ): MotionTarget? {
         if (!displayX.isFinite() || !displayY.isFinite() || visibility != View.VISIBLE || !isEnabled) {
             return null
         }
@@ -2962,6 +3023,7 @@ class FlickKeyboardView @JvmOverloads constructor(
 
         var nearest: MotionTarget? = null
         var nearestDistance = Float.POSITIVE_INFINITY
+        var isWithinKeyCell = false
         for (info in keyInfos) {
             val key = info.view
             if (key.visibility != View.VISIBLE || !key.isEnabled || key.width <= 0 || key.height <= 0) {
@@ -2971,6 +3033,16 @@ class FlickKeyboardView @JvmOverloads constructor(
             val left = location[0].toFloat()
             val top = location[1].toFloat()
             val (sx, sy) = key.displayScale()
+            val margins = key.layoutParams as? ViewGroup.MarginLayoutParams
+            val cellLeft = left - (margins?.leftMargin ?: 0) * sx
+            val cellTop = top - (margins?.topMargin ?: 0) * sy
+            val cellRight = left + (key.width + (margins?.rightMargin ?: 0)) * sx
+            val cellBottom = top + (key.height + (margins?.bottomMargin ?: 0)) * sy
+            if (displayX >= cellLeft && displayX < cellRight &&
+                displayY >= cellTop && displayY < cellBottom
+            ) {
+                isWithinKeyCell = true
+            }
             val screenWidth = key.width * sx
             val screenHeight = key.height * sy
             if (displayX >= left && displayX < left + screenWidth &&
@@ -2995,6 +3067,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                 )
             }
         }
+        if (requireKeyCell && !isWithinKeyCell) return null
         return nearest
     }
 

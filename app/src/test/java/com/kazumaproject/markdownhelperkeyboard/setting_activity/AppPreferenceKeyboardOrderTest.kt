@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.preference.PreferenceManager
 import androidx.test.core.app.ApplicationProvider
+import com.kazumaproject.markdownhelperkeyboard.BuildConfig
 import com.kazumaproject.markdownhelperkeyboard.ime_service.state.KeyboardType
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -37,8 +38,10 @@ class AppPreferenceKeyboardOrderTest {
     @Test
     @Config(qualifiers = "sw600dp")
     fun freshTabletInstallDefaultsToGojuonAndQwertyOnly() {
+        // The Groq build keeps flick input (TenKey) as the default even on tablets.
+        val expectedFirst = if (BuildConfig.USE_GROQ_VOICE) KeyboardType.TENKEY else KeyboardType.GOJUON
         assertEquals(
-            listOf(KeyboardType.GOJUON, KeyboardType.QWERTY),
+            listOf(expectedFirst, KeyboardType.QWERTY),
             AppPreference.keyboard_order,
         )
     }

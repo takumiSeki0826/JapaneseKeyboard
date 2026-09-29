@@ -252,6 +252,7 @@ fun ShortcutType.summary(context: android.content.Context): String =
         ShortcutType.GEMMA_AUDIO -> context.getString(R.string.shortcut_toolbar_summary_gemma_audio)
         ShortcutType.GEMMA_HANDWRITING -> context.getString(R.string.shortcut_toolbar_summary_gemma_handwriting)
         ShortcutType.CLIP_BOARD -> context.getString(R.string.shortcut_toolbar_summary_clip_board)
+        ShortcutType.HIDE_KEYBOARD -> context.getString(R.string.shortcut_toolbar_summary_hide_keyboard)
     }
 
 private fun android.content.Context.resolveThemeColor(@AttrRes attr: Int): Int {

@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.graphics.Color
 import androidx.core.graphics.toColorInt
 import androidx.preference.PreferenceManager
+import com.kazumaproject.markdownhelperkeyboard.BuildConfig
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.kazumaproject.core.domain.skin.KeyboardSkinId
@@ -104,6 +105,8 @@ object AppPreference {
     const val SUMIRE_KEYMAP_GUIDE_ENGLISH_KEY = "sumire_keymap_guide_english"
     const val SUMIRE_KEYMAP_GUIDE_NUMBER_KEY = "sumire_keymap_guide_number"
     const val CUSTOM_KEYMAP_GUIDE_KEY = "flick_keymap_guide"
+    const val CUSTOM_KEYBOARD_INPUT_IN_EMPTY_AREAS_KEY =
+        "custom_keyboard_input_in_empty_areas_preference"
     const val LONG_PRESS_TIMEOUT_KEY = "long_press_timeout_preference"
     const val DELETE_LONG_PRESS_CONVERSION_BEHAVIOR_KEY =
         "delete_long_press_conversion_behavior"
@@ -118,6 +121,13 @@ object AppPreference {
     private const val MIN_CANDIDATE_VISIBLE_HEIGHT_DP = 30
     private const val MAX_CANDIDATE_VISIBLE_HEIGHT_DP = 300
     private const val CURRENT_CANDIDATE_HEIGHT_DEFAULTS_MIGRATION_VERSION = 1
+
+    /** The Groq build uses a shorter candidate/shortcut strip (3/5 of upstream) to save space. */
+    private fun candidateHeightDefaultDp(upstreamDp: Int): Int =
+        if (BuildConfig.USE_GROQ_VOICE) upstreamDp * 3 / 5 else upstreamDp
+
+    // Groq build: Material You colors are seeded from the owner's launcher accent (orange).
+    private const val LAUNCHER_ACCENT = 0xFFD1432B.toInt()
 
     private val initializationLock = Any()
     private val initialization = CompletableFuture<Unit>()
@@ -145,7 +155,9 @@ object AppPreference {
         CircularFlickDirection.SLOT_6
     )
 
-    private val CLIPBOARD_HISTORY_ENABLE = Pair("clipboard_history_preference", false)
+    // Groq build: the clipboard shortcut should open clipboard history, not the emoji tab.
+    private val CLIPBOARD_HISTORY_ENABLE =
+        Pair("clipboard_history_preference", BuildConfig.USE_GROQ_VOICE)
     private val TIME_SAME_PRONOUNCE_TYPING = Pair("time_same_pronounce_typing_preference", 1000)
     private val FLICK_SENSITIVITY = Pair(FLICK_SENSITIVITY_KEY, 100)
     private val FLICK_THRESHOLD_SHAPE = Pair(
@@ -372,7 +384,8 @@ object AppPreference {
     private val KEYBOARD_POSITION = Pair("keyboard_position_preference", true)
     private val KEYBOARD_VERTICAL_MARGIN_BOTTOM =
         Pair("keyboard_vertical_margin_bottom_preference", 0)
-    private val KEYBOARD_FLOATING_PREFERENCE = Pair("keyboard_floating_preference", false)
+    private val KEYBOARD_FLOATING_PREFERENCE =
+        Pair("keyboard_floating_preference", BuildConfig.USE_GROQ_VOICE)
     private val QWERTY_KEYBOARD_HEIGHT = Pair("qwerty_keyboard_height_preference", 220)
     private val QWERTY_KEYBOARD_WIDTH = Pair("qwerty_keyboard_width_preference", 100)
     private val QWERTY_KEYBOARD_VERTICAL_MARGIN_BOTTOM =
@@ -394,11 +407,12 @@ object AppPreference {
         Pair("qwerty_keyboard_position_landscape_preference", true)
 
     private val CANDIDATE_VIEW_HEIGHT_DP_LANDSCAPE =
-        Pair("candidate_view_height_dp_landscape_preference", 60)
+        Pair("candidate_view_height_dp_landscape_preference", candidateHeightDefaultDp(60))
     private val CANDIDATE_VIEW_EMPTY_HEIGHT_DP_LANDSCAPE =
-        Pair("candidate_view_empty_height_dp_landscape_preference", 60)
+        Pair("candidate_view_empty_height_dp_landscape_preference", candidateHeightDefaultDp(60))
 
-    private val FLICK_INPUT_ONLY = Pair("flick_input_only_preference", false)
+    // Groq build: tapping the same key twice types it twice ("ああ") instead of toggling to "い".
+    private val FLICK_INPUT_ONLY = Pair("flick_input_only_preference", BuildConfig.USE_GROQ_VOICE)
     private val FLICK_EDITOR_PREVIEW = Pair(FLICK_EDITOR_PREVIEW_KEY, false)
     private val OMISSION_SEARCH = Pair("omission_search_preference", false)
     private val UNDO_ENABLE = Pair("undo_enable_preference", false)
@@ -430,6 +444,8 @@ object AppPreference {
     private val DELETE_KEY_HIGH_LIGHT = Pair("henkan_delete_key_action_preference", true)
     private val CUSTOM_KEYBOARD_SUGGESTION_PREFERENCE =
         Pair("custom_keyboard_suggestion_preference", true)
+    private val CUSTOM_KEYBOARD_INPUT_IN_EMPTY_AREAS_PREFERENCE =
+        Pair(CUSTOM_KEYBOARD_INPUT_IN_EMPTY_AREAS_KEY, false)
     private val REMEMBER_LAST_CUSTOM_KEYBOARD_PREFERENCE =
         Pair("remember_last_custom_keyboard_preference", false)
     private val LAST_USED_CUSTOM_KEYBOARD_STABLE_ID =
@@ -473,15 +489,15 @@ object AppPreference {
     private val CANDIDATE_TAB_PREFERENCE = Pair("candidate_tab_visibility_preference", false)
 
     private val SHORTCUT_TOOLBAR_VISIBILITY_PREFERENCE =
-        Pair("shortcut_toolbar_visibility_preference", false)
+        Pair("shortcut_toolbar_visibility_preference", BuildConfig.USE_GROQ_VOICE)
     private val SHORTCUT_TOOLBAR_INTEGRATED_IN_SUGGESTION_PREFERENCE =
-        Pair("shortcut_toolbar_integrated_in_suggestion_preference", false)
+        Pair("shortcut_toolbar_integrated_in_suggestion_preference", BuildConfig.USE_GROQ_VOICE)
     private val SHORTCUT_TOOLBAR_HEIGHT_DP_PREFERENCE =
         Pair("shortcut_toolbar_height_dp_preference", SHORTCUT_TOOLBAR_HEIGHT_DEFAULT_DP)
     private val SHORTCUT_TOOLBAR_ICON_SIZE_DP_PREFERENCE =
         Pair("shortcut_toolbar_icon_size_dp_preference", SHORTCUT_TOOLBAR_ICON_SIZE_DEFAULT_DP)
 
-    private val APP_THEME_SEED_COLOR = Pair("app_theme_seed_color_preference", 0x00000000)
+    private val APP_THEME_SEED_COLOR = Pair("app_theme_seed_color_preference", if (BuildConfig.USE_GROQ_VOICE) LAUNCHER_ACCENT else 0x00000000)
 
     private val KEYBOARD_THEME_MODE =
         Pair("keyboard_theme_mode_preference", "default") // default, light, dark, custom
@@ -585,33 +601,33 @@ object AppPreference {
 
     private val CANDIDATE_LETTER_SIZE = Pair("candidate_letter_size_preference", 14.0f)
 
-    private val CANDIDATE_VIEW_HEIGHT_DP = Pair("candidate_view_height_dp_preference", 60)
+    private val CANDIDATE_VIEW_HEIGHT_DP = Pair("candidate_view_height_dp_preference", candidateHeightDefaultDp(60))
     private val CANDIDATE_VIEW_EMPTY_HEIGHT_DP =
-        Pair("candidate_view_empty_height_dp_preference", 60)
+        Pair("candidate_view_empty_height_dp_preference", candidateHeightDefaultDp(60))
     private val CANDIDATE_VIEW_HEIGHT_PORTRAIT_COLUMN_1_DP =
-        Pair("candidate_view_height_portrait_column_1_dp_preference", 60)
+        Pair("candidate_view_height_portrait_column_1_dp_preference", candidateHeightDefaultDp(60))
     private val CANDIDATE_VIEW_HEIGHT_PORTRAIT_COLUMN_2_DP =
-        Pair("candidate_view_height_portrait_column_2_dp_preference", 80)
+        Pair("candidate_view_height_portrait_column_2_dp_preference", candidateHeightDefaultDp(80))
     private val CANDIDATE_VIEW_HEIGHT_PORTRAIT_COLUMN_3_DP =
-        Pair("candidate_view_height_portrait_column_3_dp_preference", 100)
+        Pair("candidate_view_height_portrait_column_3_dp_preference", candidateHeightDefaultDp(100))
     private val CANDIDATE_VIEW_HEIGHT_LANDSCAPE_COLUMN_1_DP =
-        Pair("candidate_view_height_landscape_column_1_dp_preference", 60)
+        Pair("candidate_view_height_landscape_column_1_dp_preference", candidateHeightDefaultDp(60))
     private val CANDIDATE_VIEW_HEIGHT_LANDSCAPE_COLUMN_2_DP =
-        Pair("candidate_view_height_landscape_column_2_dp_preference", 80)
+        Pair("candidate_view_height_landscape_column_2_dp_preference", candidateHeightDefaultDp(80))
     private val CANDIDATE_VIEW_HEIGHT_LANDSCAPE_COLUMN_3_DP =
-        Pair("candidate_view_height_landscape_column_3_dp_preference", 100)
+        Pair("candidate_view_height_landscape_column_3_dp_preference", candidateHeightDefaultDp(100))
     private val CANDIDATE_DEFAULT_HEIGHT_PORTRAIT_COLUMN_1_DP =
-        Pair("candidate_default_height_portrait_column_1_dp_preference", 60)
+        Pair("candidate_default_height_portrait_column_1_dp_preference", candidateHeightDefaultDp(60))
     private val CANDIDATE_DEFAULT_HEIGHT_PORTRAIT_COLUMN_2_DP =
-        Pair("candidate_default_height_portrait_column_2_dp_preference", 80)
+        Pair("candidate_default_height_portrait_column_2_dp_preference", candidateHeightDefaultDp(80))
     private val CANDIDATE_DEFAULT_HEIGHT_PORTRAIT_COLUMN_3_DP =
-        Pair("candidate_default_height_portrait_column_3_dp_preference", 100)
+        Pair("candidate_default_height_portrait_column_3_dp_preference", candidateHeightDefaultDp(100))
     private val CANDIDATE_DEFAULT_HEIGHT_LANDSCAPE_COLUMN_1_DP =
-        Pair("candidate_default_height_landscape_column_1_dp_preference", 60)
+        Pair("candidate_default_height_landscape_column_1_dp_preference", candidateHeightDefaultDp(60))
     private val CANDIDATE_DEFAULT_HEIGHT_LANDSCAPE_COLUMN_2_DP =
-        Pair("candidate_default_height_landscape_column_2_dp_preference", 80)
+        Pair("candidate_default_height_landscape_column_2_dp_preference", candidateHeightDefaultDp(80))
     private val CANDIDATE_DEFAULT_HEIGHT_LANDSCAPE_COLUMN_3_DP =
-        Pair("candidate_default_height_landscape_column_3_dp_preference", 100)
+        Pair("candidate_default_height_landscape_column_3_dp_preference", candidateHeightDefaultDp(100))
     private val CANDIDATE_DEFAULT_EMPTY_HEIGHT_DP =
         Pair(
             "candidate_default_empty_height_dp_preference",
@@ -629,7 +645,7 @@ object AppPreference {
         Pair("clipboard_preview_enable_preference", true)
 
     private val CLIP_BOARD_PREVIEW_TAP_DELETE_PREFERENCE =
-        Pair("clipboard_preview_tap_delete_preference", false)
+        Pair("clipboard_preview_tap_delete_preference", BuildConfig.USE_GROQ_VOICE)
 
     private val CLIPBOARD_DELETE_UNPINNED_AFTER_HOURS_PREFERENCE =
         Pair("clipboard_delete_unpinned_after_hours_preference", false)
@@ -676,7 +692,7 @@ object AppPreference {
         Pair("qwerty_romaji_shift_conversion_preference", false)
 
     private val TABLET_GOJUON_LAYOUT_PREFERENCE =
-        Pair("tablet_use_gojuon_layout_preference", true)
+        Pair("tablet_use_gojuon_layout_preference", !BuildConfig.USE_GROQ_VOICE)
 
     private val LAST_PASTED_CLIPBOARD_TEXT_PREFERENCE =
         Pair("last_pasted_clipboard_text_preference", "")
@@ -1011,7 +1027,8 @@ object AppPreference {
 
     private fun defaultKeyboardOrder(isTablet: Boolean = isTabletDevice): List<KeyboardType> {
         return listOf(
-            if (isTablet) KeyboardType.GOJUON else KeyboardType.TENKEY,
+            // The Groq build keeps flick input (TenKey) as the default even on tablets.
+            if (isTablet && !BuildConfig.USE_GROQ_VOICE) KeyboardType.GOJUON else KeyboardType.TENKEY,
             KeyboardType.QWERTY,
         )
     }
@@ -2616,6 +2633,15 @@ object AppPreference {
         )
         set(value) = preferences.edit {
             it.putBoolean(CUSTOM_KEYBOARD_SUGGESTION_PREFERENCE.first, value ?: true)
+        }
+
+    var custom_keyboard_input_in_empty_areas_preference: Boolean
+        get() = preferences.getBoolean(
+            CUSTOM_KEYBOARD_INPUT_IN_EMPTY_AREAS_PREFERENCE.first,
+            CUSTOM_KEYBOARD_INPUT_IN_EMPTY_AREAS_PREFERENCE.second
+        )
+        set(value) = preferences.edit {
+            it.putBoolean(CUSTOM_KEYBOARD_INPUT_IN_EMPTY_AREAS_PREFERENCE.first, value)
         }
 
     var remember_last_custom_keyboard_preference: Boolean?

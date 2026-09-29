@@ -1,5 +1,6 @@
 package com.kazumaproject.markdownhelperkeyboard.repository
 
+import com.kazumaproject.markdownhelperkeyboard.BuildConfig
 import com.kazumaproject.markdownhelperkeyboard.short_cut.ShortcutType
 import com.kazumaproject.markdownhelperkeyboard.short_cut.data.ShortcutItem
 import com.kazumaproject.markdownhelperkeyboard.short_cut.database.ShortcutDao
@@ -16,17 +17,35 @@ class ShortcutRepository @Inject constructor(
 ) {
     private val fallbackShortcuts = listOf(ShortcutType.SETTINGS)
 
-    val defaultShortcuts = listOf(
-        ShortcutType.SETTINGS,
-        ShortcutType.EMOJI,
-        ShortcutType.TEMPLATE,
-        ShortcutType.COPY,
-        ShortcutType.PASTE,
-        ShortcutType.KEYBOARD_PICKER,
-        ShortcutType.KEYBOARD_LAYOUT_EDIT,
-        ShortcutType.GEMMA_HANDWRITING,
-        ShortcutType.CLIP_BOARD
-    )
+    val defaultShortcuts = defaultShortcutsFor(BuildConfig.USE_GROQ_VOICE)
+
+    companion object {
+        fun defaultShortcutsFor(useGroqVoice: Boolean): List<ShortcutType> =
+            if (useGroqVoice) {
+                // One compact row for the floating keyboard that replaces its header
+                // (hide / size edit). Voice input sits next to clipboard so it stays
+                // visible even when the narrow row cuts off the last items.
+                listOf(
+                    ShortcutType.HIDE_KEYBOARD,
+                    ShortcutType.CLIP_BOARD,
+                    ShortcutType.VOICE_INPUT,
+                    ShortcutType.TEMPLATE,
+                    ShortcutType.KEYBOARD_LAYOUT_EDIT
+                )
+            } else {
+                listOf(
+                    ShortcutType.SETTINGS,
+                    ShortcutType.EMOJI,
+                    ShortcutType.TEMPLATE,
+                    ShortcutType.COPY,
+                    ShortcutType.PASTE,
+                    ShortcutType.KEYBOARD_PICKER,
+                    ShortcutType.KEYBOARD_LAYOUT_EDIT,
+                    ShortcutType.GEMMA_HANDWRITING,
+                    ShortcutType.CLIP_BOARD
+                )
+            }
+    }
 
     /**
      * 現在有効なショートカットのリストを監視可能なFlowとして返します。

@@ -3,7 +3,9 @@ package com.kazumaproject.markdownhelperkeyboard.setting_activity
 import android.content.Context
 import androidx.preference.PreferenceManager
 import androidx.test.core.app.ApplicationProvider
+import com.kazumaproject.markdownhelperkeyboard.BuildConfig
 import org.junit.Assert.assertEquals
+import org.junit.Assume.assumeFalse
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -16,6 +18,8 @@ class AppPreferenceCandidateHeightTest {
 
     @Before
     fun setUp() {
+        // Upstream heights; the Groq build's 3/4 defaults are covered by GroqCandidateHeightTest.
+        assumeFalse(BuildConfig.USE_GROQ_VOICE)
         val context = ApplicationProvider.getApplicationContext<Context>()
         PreferenceManager.getDefaultSharedPreferences(context).edit().clear().commit()
         AppPreference.init(context)

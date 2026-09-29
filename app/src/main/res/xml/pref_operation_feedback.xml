@@ -5,7 +5,7 @@
     <PreferenceCategory android:title="@string/category_flick_input_title">
 
         <SwitchPreferenceCompat
-            android:defaultValue="false"
+            android:defaultValue="@bool/flick_input_only_default"
             android:key="flick_input_only_preference"
             android:summaryOff="@string/flick_input_only_summary_off"
             android:summaryOn="@string/flick_input_only_summary_on"

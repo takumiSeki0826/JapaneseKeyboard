@@ -104,7 +104,7 @@
             android:title="@string/composing_guide_integrated_reset" />
 
         <SwitchPreferenceCompat
-            android:defaultValue="false"
+            android:defaultValue="@bool/keyboard_floating_default"
             android:key="keyboard_floating_preference"
             android:summary="@string/keyboard_floating_preference_summary"
             android:title="@string/keyboard_floating_preference_title" />
@@ -391,14 +391,14 @@
         <SwitchPreferenceCompat
             android:key="shortcut_toolbar_visibility_preference"
             android:title="@string/shortcut_toolbar_title"
-            app:defaultValue="false"
+            app:defaultValue="@bool/shortcut_toolbar_visible_default"
             app:summary="@string/shortcut_toolbar_summary" />
 
         <SwitchPreferenceCompat
             android:dependency="shortcut_toolbar_visibility_preference"
             android:key="shortcut_toolbar_integrated_in_suggestion_preference"
             android:title="@string/shortcut_toolbar_integrated_in_suggestion_title"
-            app:defaultValue="false"
+            app:defaultValue="@bool/shortcut_toolbar_integrated_default"
             app:summary="@string/shortcut_toolbar_integrated_in_suggestion_summary" />
 
         <SwitchPreferenceCompat
@@ -518,7 +518,7 @@
     <PreferenceCategory android:title="@string/category_flick_input_title">
 
         <SwitchPreferenceCompat
-            android:defaultValue="false"
+            android:defaultValue="@bool/flick_input_only_default"
             android:key="flick_input_only_preference"
             android:summaryOff="@string/flick_input_only_summary_off"
             android:summaryOn="@string/flick_input_only_summary_on"
@@ -613,7 +613,7 @@
             android:title="@string/pref_clipboard_preview_title" />
 
         <SwitchPreferenceCompat
-            android:defaultValue="false"
+            android:defaultValue="@bool/clipboard_preview_tap_delete_default"
             android:dependency="clipboard_preview_enable_preference"
             android:key="clipboard_preview_tap_delete_preference"
             android:summary="@string/pref_clipboard_tap_delete_summary"

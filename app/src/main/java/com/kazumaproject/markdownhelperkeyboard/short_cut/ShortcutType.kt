@@ -102,6 +102,7 @@ enum class ShortcutType(
     VOICE_INPUT(
         "voice_input",
         com.kazumaproject.core.R.drawable.settings_voice_24px,
+        activeIconResId = com.kazumaproject.markdownhelperkeyboard.R.drawable.voice_input_recording_24,
         description = "音声入力"
     ),
     GEMMA_IMAGE(
@@ -125,6 +126,11 @@ enum class ShortcutType(
         "clip_board",
         com.kazumaproject.core.R.drawable.clip_board,
         description = "クリップボード"
+    ),
+    HIDE_KEYBOARD(
+        "hide_keyboard",
+        com.kazumaproject.core.R.drawable.baseline_keyboard_arrow_down_24,
+        description = "キーボードを閉じる"
     )
     ;
 

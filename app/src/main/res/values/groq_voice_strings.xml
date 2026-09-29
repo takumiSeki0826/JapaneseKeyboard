@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_toolbar_summary_hide_keyboard">Hide the keyboard.</string>
+    <string name="user_template_empty_hint">No templates yet. Add them in Settings → Templates.</string>
+</resources>

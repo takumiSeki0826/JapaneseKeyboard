@@ -1,6 +1,8 @@
 package com.kazumaproject.markdownhelperkeyboard.setting_activity
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.Menu
@@ -8,7 +10,9 @@ import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.Insets
 import androidx.core.view.MenuProvider
 import androidx.core.view.ViewCompat
@@ -29,6 +33,7 @@ import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.color.DynamicColors
 import com.google.android.material.color.DynamicColorsOptions
+import com.kazumaproject.markdownhelperkeyboard.BuildConfig
 import com.kazumaproject.markdownhelperkeyboard.R
 import com.kazumaproject.markdownhelperkeyboard.databinding.ActivityMainBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -57,6 +62,10 @@ class MainActivity : AppCompatActivity() {
     internal var isSettingsContentReady = false
         private set
 
+    // Groq voice input records from the IME, which cannot show a permission dialog itself.
+    private val requestGroqMicPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+
     init {
         // FragmentActivity restores fragments when ComponentActivity creates its context,
         // before super.onCreate() returns. Cap the restored host before dispatchCreate()
@@ -76,9 +85,14 @@ class MainActivity : AppCompatActivity() {
         R.id.candidateViewHeightSettingFragment,
         R.id.candidateHeightLandscapeSettingFragment,
         R.id.candidateHeightDefaultsFragment,
+        R.id.localFontSettingsFragment,
     )
-    private val destinationsWithOwnToolbar =
-        destinationsWithoutBottomNavigation + R.id.shortcutToolbarSizeSettingFragment
+    private val destinationsWithOwnToolbar = setOf(
+        R.id.candidateViewHeightSettingFragment,
+        R.id.candidateHeightLandscapeSettingFragment,
+        R.id.candidateHeightDefaultsFragment,
+        R.id.shortcutToolbarSizeSettingFragment,
+    )
     private val destinationsWithoutSharedActionBar =
         destinationsWithOwnToolbar + R.id.enableKeyboardFragment
 
@@ -99,6 +113,7 @@ class MainActivity : AppCompatActivity() {
         pendingIntentRequest = savedInstanceState?.getString(PENDING_INTENT_REQUEST_KEY)
 
         super.onCreate(savedInstanceState)
+        requestGroqMicPermissionIfNeeded()
         // Window fitting must be configured before the delayed preferences load.
         // Configuring it after the Activity has started can leave AppCompat's
         // ActionBar and content with different system-bar insets.
@@ -117,6 +132,15 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun requestGroqMicPermissionIfNeeded() {
+        if (!BuildConfig.USE_GROQ_VOICE) return
+        val granted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.RECORD_AUDIO,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (!granted) requestGroqMicPermission.launch(Manifest.permission.RECORD_AUDIO)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

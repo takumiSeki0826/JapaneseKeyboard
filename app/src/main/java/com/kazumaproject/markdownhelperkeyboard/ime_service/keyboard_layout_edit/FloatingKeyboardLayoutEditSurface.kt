@@ -28,7 +28,7 @@ internal class FloatingKeyboardLayoutEditSurface(
     }
 
     override fun setEditing(isEditing: Boolean) {
-        panel?.setEditing(isEditing)
+        panel?.setLayoutEditing(isEditing)
         binding.dragHandle.isEnabled = !isEditing
         binding.dragHandle.alpha = if (isEditing) 0.35f else 1f
     }

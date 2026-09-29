@@ -96,6 +96,8 @@ import androidx.core.view.inputmethod.InputConnectionCompat
 import androidx.core.view.inputmethod.InputContentInfoCompat
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
+import androidx.core.view.updateLayoutParams
+import androidx.core.view.updatePadding
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -195,6 +197,11 @@ import com.kazumaproject.listeners.ReturnToTenKeyButtonClickListener
 import com.kazumaproject.listeners.SymbolRecyclerViewItemClickListener
 import com.kazumaproject.listeners.SymbolRecyclerViewItemLongClickListener
 import com.kazumaproject.markdownhelperkeyboard.BuildConfig
+import com.kazumaproject.markdownhelperkeyboard.groq_voice.EmojiTextDrawable
+import com.kazumaproject.markdownhelperkeyboard.groq_voice.FloatingQwertySize
+import com.kazumaproject.markdownhelperkeyboard.groq_voice.GroqVoiceInput
+import com.kazumaproject.markdownhelperkeyboard.groq_voice.KeyboardSize
+import com.kazumaproject.markdownhelperkeyboard.groq_voice.RecordingState
 import com.kazumaproject.markdownhelperkeyboard.R
 import com.kazumaproject.markdownhelperkeyboard.clipboard_history.database.ClipboardHistoryItem
 import com.kazumaproject.markdownhelperkeyboard.clipboard_history.database.ItemType
@@ -247,6 +254,10 @@ import com.kazumaproject.markdownhelperkeyboard.gemma.handwriting.GemmaHandwriti
 import com.kazumaproject.markdownhelperkeyboard.gemma.handwriting.GemmaHandwritingKeyboardView
 import com.kazumaproject.markdownhelperkeyboard.gemma.media.GemmaImagePickerActivity
 import com.kazumaproject.markdownhelperkeyboard.gemma.media.GemmaImeMediaPanelController
+import com.kazumaproject.markdownhelperkeyboard.local_font.LocalFontRepository
+import com.kazumaproject.core.ui.font.KeyboardFontApplicator
+import com.kazumaproject.core.ui.font.KeyboardFontGlyphDrawable
+import com.kazumaproject.core.ui.font.KeyboardFontSnapshot
 import com.kazumaproject.markdownhelperkeyboard.ime_service.adapters.FloatingCandidateListAdapter
 import com.kazumaproject.markdownhelperkeyboard.ime_service.adapters.GridSpacingItemDecoration
 import com.kazumaproject.markdownhelperkeyboard.ime_service.adapters.InlineSuggestionStripState
@@ -553,6 +564,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     lateinit var appPreference: AppPreference
 
     @Inject
+    lateinit var localFontRepository: LocalFontRepository
+
+    @Inject
     lateinit var inputMethodManager: InputMethodManager
 
     @Inject
@@ -717,6 +731,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
      * actionInDestroy 等でこのフラグを false に戻すこと。
      */
     private var isFloatingQwertyConfigured: Boolean = false
+    private var floatingQwertyAppliedSkinId: KeyboardSkinId? = null
     private var keyboardBackgroundPlayer: ExoPlayer? = null
     private var floatingKeyboardBackgroundPlayer: ExoPlayer? = null
     private val keyboardBackgroundImageRequestId = AtomicLong(0L)
@@ -758,6 +773,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     private var speechRecognizer: SpeechRecognizer? = null
     private var isListening = false
+    private var groqVoiceInput: GroqVoiceInput? = null
 
     private var enableGemmaTranslationPreference: Boolean? = false
 
@@ -869,6 +885,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private var kanaKanjiEngineActivationJob: Job? = null
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val localFontScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
     private val ioScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val forwardDeleteCoordinator by lazy {
         ForwardDeleteCoordinator(
@@ -926,6 +943,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         AppPreference.SUMIRE_KEYMAP_GUIDE_ENGLISH_KEY,
         AppPreference.SUMIRE_KEYMAP_GUIDE_NUMBER_KEY,
         AppPreference.CUSTOM_KEYMAP_GUIDE_KEY,
+        AppPreference.CUSTOM_KEYBOARD_INPUT_IN_EMPTY_AREAS_KEY,
         AppPreference.LONG_PRESS_TIMEOUT_KEY,
         AppPreference.DELETE_LONG_PRESS_CONVERSION_BEHAVIOR_KEY,
         AppPreference.VIBRATION_KEY,
@@ -2011,18 +2029,25 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             applicationContext, com.kazumaproject.core.R.drawable.language_24dp
         )
     }
-    private val cachedKanaDrawable: Drawable? by lazy {
-        ContextCompat.getDrawable(applicationContext, com.kazumaproject.core.R.drawable.kana_small)
-    }
-    private val cachedHenkanDrawable: Drawable? by lazy {
-        ContextCompat.getDrawable(applicationContext, com.kazumaproject.core.R.drawable.henkan)
-    }
-
-    private val cachedNumberDrawable: Drawable? by lazy {
-        ContextCompat.getDrawable(
-            applicationContext, com.kazumaproject.core.R.drawable.number_small
+    private val cachedKanaDrawable: Drawable?
+        get() = KeyboardFontGlyphDrawable.create(
+            applicationContext,
+            com.kazumaproject.core.R.drawable.kana_small,
+            KeyboardFontApplicator.processSnapshot,
         )
-    }
+    private val cachedHenkanDrawable: Drawable?
+        get() = KeyboardFontGlyphDrawable.create(
+            applicationContext,
+            com.kazumaproject.core.R.drawable.henkan,
+            KeyboardFontApplicator.processSnapshot,
+        )
+
+    private val cachedNumberDrawable: Drawable?
+        get() = KeyboardFontGlyphDrawable.create(
+            applicationContext,
+            com.kazumaproject.core.R.drawable.number_small,
+            KeyboardFontApplicator.processSnapshot,
+        )
 
     private val cachedArrowDropDownDrawable: Drawable? by lazy {
         ContextCompat.getDrawable(
@@ -2066,11 +2091,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         )
     }
 
-    private val cachedEnglishDrawable: Drawable? by lazy {
-        ContextCompat.getDrawable(
-            applicationContext, com.kazumaproject.core.R.drawable.english_small
+    private val cachedEnglishDrawable: Drawable?
+        get() = KeyboardFontGlyphDrawable.create(
+            applicationContext,
+            com.kazumaproject.core.R.drawable.english_small,
+            KeyboardFontApplicator.processSnapshot,
         )
-    }
 
     companion object {
         private const val LONG_DELAY_TIME = 64L
@@ -2551,6 +2577,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     if (selection != configured) splitSettings.saveSelection(slot, selection)
                     val binding = FloatingKeyboardLayoutBinding.inflate(LayoutInflater.from(main.root.context))
                     val adapter = SuggestionAdapter()
+                    val fontSnapshot = localFontRepository.state.value.snapshot
+                    KeyboardFontApplicator.applyToKeyboardViews(binding.keyboardViewFloating, fontSnapshot)
+                    KeyboardFontApplicator.applyToKeyboardViews(binding.gojuonViewFloating, fontSnapshot)
+                    KeyboardFontApplicator.applyToKeyboardViews(binding.qwertyViewFloating, fontSnapshot)
+                    KeyboardFontApplicator.applyToKeyboardViews(binding.customLayoutFloating, fontSnapshot)
+                    KeyboardFontApplicator.applyToKeyboardViews(binding.floatingSymbolKeyboard, fontSnapshot)
+                    adapter.setKeyboardFont(fontSnapshot)
                     var minimumWidthDp = when (selection.type) {
                         KeyboardType.GOJUON -> 360
                         KeyboardType.SUMIRE -> 200
@@ -2603,7 +2636,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                             state.customDirect = resolveInitialCustomKeyboardDirectMode(selected.layoutId, selected.stableId, layout.isDirectMode)
                             isCustomLayoutRomajiMode = state.customRomaji
                             isCustomLayoutDirectMode = state.customDirect
-                            setKeyboardWithDeleteKeyFlickPreferences(binding.customLayoutFloating, layout)
+                            setKeyboardWithDeleteKeyFlickPreferences(
+                                binding.customLayoutFloating,
+                                layout,
+                                isUserDefinedCustomLayout = true
+                            )
                             syncCustomKeyboardTogglePresentation(binding.customLayoutFloating)
                         }
                         else -> Unit
@@ -2700,8 +2737,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         hideKeyboardViews(surface)
         // A source switch must neither reset this pane's tab/scroll nor cancel its loading job.
         state.symbolJob = scope.launch {
-            setSymbolsFloating(binding, if (requested.mode == SymbolMode.CLIPBOARD) SymbolMode.CLIPBOARD
-                else symbolKeyboardFirstItem ?: SymbolMode.EMOJI)
+            setSymbolsFloating(
+                binding,
+                resolveSymbolKeyboardInitialMode(requested.mode, symbolKeyboardFirstItem)
+            )
             if (splitInputs[state.slot] === state && state.symbolRequest == requested) {
                 updateFloatingKeyboardTouchEffectBounds(binding)
             }
@@ -2803,6 +2842,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         savedSingleFloatingBinding = null
         isKeyboardFloatingMode = savedSingleFloatingMode
         isFloatingQwertyConfigured = false
+        floatingQwertyAppliedSkinId = null
         if (restoreSurface) applyFloatingModeState(isKeyboardFloatingMode == true)
         composingGuide?.refresh()
     }
@@ -2869,6 +2909,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     override fun onCreate() {
         super.onCreate()
+        localFontScope.launch {
+            runCatching { localFontRepository.loadIfNeeded() }
+                .onFailure { Timber.w(it, "Unable to restore the saved local keyboard font") }
+            localFontRepository.state.collect { state -> applyLocalKeyboardFont(state.snapshot) }
+        }
         window.window?.let { imeWindow ->
             if (supportsNavbarExtension) {
                 WindowCompat.setDecorFitsSystemWindows(imeWindow, false)
@@ -3006,6 +3051,27 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             physicalKeyboardShortcutRepository.ensureDefaultShortcuts()
         }
 
+        if (BuildConfig.USE_GROQ_VOICE) {
+            val symbolIconSizePx = (24 * resources.displayMetrics.density).toInt()
+            KeyboardFontGlyphDrawable.resourceOverrides = mapOf(
+                com.kazumaproject.core.R.drawable.symbol to { _ ->
+                    EmojiTextDrawable("😂", symbolIconSizePx)
+                }
+            )
+            groqVoiceInput = GroqVoiceInput(
+                context = this,
+                scope = scope,
+                onStateChanged = { state ->
+                    setSuggestionProgressVisible(
+                        reason = SuggestionProgressReason.VoiceInput,
+                        visible = state is RecordingState.Transcribing
+                    )
+                    updateShortcutActiveStates()
+                },
+                onTranscribed = ::commitGroqTranscription,
+            )
+        }
+
         if (SpeechRecognizer.isRecognitionAvailable(this)) {
             speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this).apply {
                 setRecognitionListener(object : RecognitionListener {
@@ -3133,7 +3199,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             candidateSurfaceHost = com.kazumaproject.markdownhelperkeyboard.ime_service.composing_guide.CandidateSurfaceHost(
                 binding.shortcutToolbarRecyclerview, binding.candidateTabLayout,
                 binding.suggestionViewParent, binding.suggestionRecyclerView, binding.candidatesRowView,
-            ).also { it.attach(target) }
+            ).also {
+                it.setKeyboardFont(KeyboardFontApplicator.processSnapshot)
+                it.attach(target)
+            }
             binding.suggestionRecyclerView.addOnLayoutChangeListener(floatingCandidateSizeListener)
         }
         splitController?.setCandidatesDetached(floatingCandidateSurfaceActive)
@@ -3159,7 +3228,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             customThemeShortcutIconColor ?: Color.BLACK,
         ) else null
         return com.kazumaproject.markdownhelperkeyboard.ime_service.composing_guide.CandidatePanelColors.resolve(
-            context, KeyboardSkinRegistry.find(keyboardSkinId)?.palette, custom)
+            context,
+            KeyboardSkinRegistry.find(keyboardSkinId)?.palette,
+            custom,
+            cupertinoClassic = keyboardSkinId == KeyboardSkinId.CUPERTINO_CLASSIC,
+        )
     }
 
     private fun configureFloatingCandidates(binding: MainLayoutBinding) {
@@ -3554,6 +3627,39 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             applyCurrentFlickGuidePreference(customLayoutFloating)
             customLayoutFloating.setTfbiPopupPresentationMode(tfbiPopupPresentationMode)
             customLayoutFloating.setTfbiFlickStartPositionMode(tfbiFlickStartPositionMode)
+        }
+        syncCustomKeyboardHitTestPreference()
+    }
+
+    private fun customKeyboardHitTestMode(): KeyHitTestMode =
+        if (appPreference.custom_keyboard_input_in_empty_areas_preference) {
+            KeyHitTestMode.NEAREST_KEY
+        } else {
+            KeyHitTestMode.NEAREST_KEY_IN_KEY_CELLS
+        }
+
+    private fun syncCustomKeyboardHitTestPreference() {
+        val hitTestMode = customKeyboardHitTestMode()
+        if (splitController != null) {
+            splitInputs.values
+                .filter { state ->
+                    state.selection.type == KeyboardType.CUSTOM &&
+                        state.binding.customLayoutFloating.activeKeyHitTestMode !=
+                        KeyHitTestMode.KEY_BOUNDS
+                }
+                .forEach { state ->
+                    state.binding.customLayoutFloating.setKeyHitTestMode(hitTestMode)
+                }
+            return
+        }
+
+        val isCustomLayoutActive = qwertyMode.value == TenKeyQWERTYMode.Custom ||
+            (qwertyMode.value == TenKeyQWERTYMode.Number &&
+                numberUsageCustomKeyboardLayoutOrNull() != null)
+        if (isCustomLayoutActive) {
+            getActiveKeyboardSurface()?.customLayout
+                ?.takeIf { it.activeKeyHitTestMode != KeyHitTestMode.KEY_BOUNDS }
+                ?.setKeyHitTestMode(hitTestMode)
         }
     }
 
@@ -5360,10 +5466,19 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private fun applyKeyboardContainerBackgrounds(mainView: MainLayoutBinding) {
         KeyboardSkinRegistry.find(keyboardSkinId)?.let { skin ->
             mainView.root.background = skin.keyboardDrawable(resources)
-            mainView.suggestionViewParent.background = skin.keyboardDrawable(resources)
-            mainView.candidateTabLayout.setBackgroundColor(skin.palette.background)
+            if (keyboardSkinId == KeyboardSkinId.CUPERTINO_CLASSIC) {
+                val chrome = com.kazumaproject.markdownhelperkeyboard.ime_service.composing_guide.CupertinoClassicCandidateChrome
+                mainView.suggestionViewParent.background = chrome.panelBackground()
+                mainView.candidateTabLayout.background = chrome.tabsBackground()
+                mainView.shortcutToolbarRecyclerview.background = chrome.toolbarBackground(resources)
+            } else {
+                mainView.suggestionViewParent.background = skin.keyboardDrawable(resources)
+                mainView.candidateTabLayout.setBackgroundColor(skin.palette.background)
+                mainView.shortcutToolbarRecyclerview.background = null
+            }
             return
         }
+        mainView.shortcutToolbarRecyclerview.background = null
         val isDynamic = DynamicColors.isDynamicColorAvailable()
         if (isKeyboardRounded == true) {
             val fallbackColor = getColor(com.kazumaproject.core.R.color.keyboard_bg)
@@ -5461,7 +5576,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     ) {
         KeyboardSkinRegistry.find(keyboardSkinId)?.let { skin ->
             floatingView.root.background = skin.keyboardDrawable(resources, floating = true)
-            floatingView.suggestionViewParent.background = skin.keyboardDrawable(resources)
+            floatingView.suggestionViewParent.background = if (keyboardSkinId == KeyboardSkinId.CUPERTINO_CLASSIC) {
+                com.kazumaproject.markdownhelperkeyboard.ime_service.composing_guide.CupertinoClassicCandidateChrome.panelBackground()
+            } else skin.keyboardDrawable(resources)
             return
         }
         val isDynamic = DynamicColors.isDynamicColorAvailable()
@@ -5917,6 +6034,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
+        groqVoiceInput?.cancel()
         physicalKeyboardPopupPositions.reset()
         modeSwitchAwaitingCursorPosition = false
         dismissJob?.cancel()
@@ -5981,6 +6099,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     }
 
     override fun onDestroy() {
+        groqVoiceInput?.release()
+        groqVoiceInput = null
+        localFontScope.cancel()
         keyboardSelectionPopupWindow?.dismiss()
         stopSplitKeyboard()
         dictionaryFloats?.destroy()
@@ -6575,7 +6696,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             return false
         }
         return runCatching {
+            applyLocalFontToPopupContent(popupWindow.contentView)
             popupWindow.showAtLocation(anchorView, gravity, x, y)
+            popupWindow.contentView.post { applyLocalFontToPopupContent(popupWindow.contentView) }
             true
         }.onFailure { throwable ->
             Timber.w(throwable, "$source: showAtLocation failed")
@@ -6872,6 +6995,20 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
     }
 
+    /**
+     * The floating layout hard-codes a 58dp strip; the Groq build sizes it from the
+     * candidate height setting instead so the shortcut/candidate row can be compact.
+     */
+    private fun applyCompactFloatingStripHeight(binding: FloatingKeyboardLayoutBinding) {
+        val heightPx = (getKeyboardSizePreferences().candidateHeight * resources.displayMetrics.density).toInt()
+        binding.suggestionRecyclerView.updateLayoutParams<ViewGroup.LayoutParams> { height = heightPx }
+        binding.suggestionRecyclerView.updatePadding(top = 0)
+        binding.suggestionVisibility.updateLayoutParams<ViewGroup.LayoutParams> {
+            width = minOf(width, heightPx)
+            height = minOf(height, heightPx)
+        }
+    }
+
     private fun resolveFloatingKeyboardWidthPx(mode: TenKeyQWERTYMode): Int {
         val prefs = getKeyboardSizePreferences()
         val screenWidth = resources.displayMetrics.widthPixels
@@ -7014,6 +7151,22 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
     }
 
+    private fun toggleGroqVoiceInput(groqVoice: GroqVoiceInput) {
+        if (groqVoice.isReadyToRecord) {
+            // Settle any pending reading as-is so the transcription is inserted after it.
+            stringInTail.set("")
+            finishComposingText()
+            setComposingText("", 0)
+            _inputString.update { "" }
+        }
+        groqVoice.toggle()
+    }
+
+    private fun commitGroqTranscription(text: String) {
+        commitText(text, 1)
+        clearDeletedBufferWithoutResetLayout()
+    }
+
     private fun stopVoiceInput() {
         if (!isListening) return
         try {
@@ -7051,10 +7204,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 view.setKeyboardTheme(
                     skinId = keyboardSkinId,
                     backgroundColor = palette?.background ?: manipulateColor(keyColor, 1.2f),
-                    iconColor = customThemeKeyTextColor ?: Color.BLACK,
+                    iconColor = palette?.specialText ?: customThemeKeyTextColor ?: Color.BLACK,
                     selectedIconColor = palette?.selectionText
                         ?: manipulateColor(customThemeKeyTextColor ?: Color.BLACK, 0.6f),
-                    keyBackgroundColor = keyColor,
+                    keyBackgroundColor = palette?.specialKey ?: keyColor,
                     liquidGlassEnable = liquidGlassThemePreference ?: false,
                 )
             } else {
@@ -7069,8 +7222,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private fun applyFloatingSymbolKeyboardAppearance(view: CustomSymbolKeyboardView) {
         val palette = KeyboardSkinRegistry.find(keyboardSkinId)?.palette
         if (palette != null) {
-            view.setKeyboardTheme(palette.background, palette.text, palette.selectionText,
-                palette.key, false, keyboardSkinId)
+            view.setKeyboardTheme(palette.background, palette.specialText, palette.selectionText,
+                palette.specialKey, false, keyboardSkinId)
         } else {
             // Preserve the existing floating-symbol theme policy.
             view.restoreDefaultKeyboardTheme()
@@ -7100,13 +7253,20 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
         val palette = KeyboardSkinRegistry.find(keyboardSkinId)?.palette
         if (palette != null) {
-            tab.setTabTextColors(palette.text, palette.selection)
-            tab.setSelectedTabIndicatorColor(palette.selection)
+            if (keyboardSkinId == KeyboardSkinId.CUPERTINO_CLASSIC) {
+                com.kazumaproject.markdownhelperkeyboard.ime_service.composing_guide.CupertinoClassicCandidateChrome.applyTabs(tab)
+            } else {
+                com.kazumaproject.markdownhelperkeyboard.ime_service.composing_guide.CupertinoClassicCandidateChrome.restoreTabs(tab)
+                tab.setTabTextColors(palette.text, palette.selection)
+                tab.setSelectedTabIndicatorColor(palette.selection)
+            }
         } else if (keyboardThemeMode == "custom") {
+            com.kazumaproject.markdownhelperkeyboard.ime_service.composing_guide.CupertinoClassicCandidateChrome.restoreTabs(tab)
             tab.setTabTextColors(customThemeKeyTextColor ?: Color.BLACK,
                 customThemeSpecialKeyTextColor ?: Color.BLACK)
             tab.setSelectedTabIndicatorColor(customThemeSpecialKeyTextColor ?: Color.BLACK)
         } else {
+            com.kazumaproject.markdownhelperkeyboard.ime_service.composing_guide.CupertinoClassicCandidateChrome.restoreTabs(tab)
             tab.setTabTextColors(original.text)
             tab.setSelectedTabIndicatorColor(original.indicator)
         }
@@ -7114,15 +7274,29 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     /** Reapply appearance to reused candidate surfaces at every input session, not only inflation. */
     private fun applyCandidateAppearance() {
-        mainLayoutBinding?.candidateTabLayout?.let(::applyCandidateTabAppearance)
+        if (!floatingCandidateSurfaceActive) {
+            mainLayoutBinding?.candidateTabLayout?.let(::applyCandidateTabAppearance)
+        }
         val custom = keyboardThemeMode == "custom"
         listOfNotNull(suggestionAdapter, suggestionAdapterFull).forEach { adapter ->
             adapter.setCandidateTextColor(if (custom) customThemeCandidateTextColor ?: Color.BLACK else null)
             adapter.setCandidateItemColors(
-                if (custom) customThemeCandidateItemBgColor ?: Color.TRANSPARENT else null,
-                if (custom) customThemeCandidateItemPressedBgColor ?: ContextCompat.getColor(
+                if (keyboardSkinId == KeyboardSkinId.CUPERTINO_CLASSIC) Color.TRANSPARENT
+                else if (custom) customThemeCandidateItemBgColor ?: Color.TRANSPARENT else null,
+                if (keyboardSkinId == KeyboardSkinId.CUPERTINO_CLASSIC) {
+                    com.kazumaproject.markdownhelperkeyboard.ime_service.composing_guide.CupertinoClassicCandidateChrome.candidatePressedColor
+                } else if (custom) customThemeCandidateItemPressedBgColor ?: ContextCompat.getColor(
                     this, com.kazumaproject.core.R.color.qwety_key_bg_color
                 ) else null,
+                if (keyboardSkinId == KeyboardSkinId.CUPERTINO_CLASSIC) 0f else 16f,
+            )
+            adapter.setCandidateDividerColor(
+                if (keyboardSkinId == KeyboardSkinId.CUPERTINO_CLASSIC)
+                    com.kazumaproject.markdownhelperkeyboard.ime_service.composing_guide.CupertinoClassicCandidateChrome.dividerColor
+                else null,
+                verticalMarginDp = if (keyboardSkinId == KeyboardSkinId.CUPERTINO_CLASSIC)
+                    com.kazumaproject.markdownhelperkeyboard.ime_service.composing_guide.CupertinoClassicCandidateChrome.candidateDividerVerticalInsetDp
+                else null,
             )
         }
         listOfNotNull(mainLayoutBinding?.suggestionVisibility, floatingKeyboardBinding?.suggestionVisibility)
@@ -7186,6 +7360,39 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
     }
 
+    private fun applyLocalKeyboardFont(snapshot: KeyboardFontSnapshot) {
+        mainLayoutBinding?.let { binding ->
+            KeyboardFontApplicator.applyToKeyboardViews(binding.keyboardView, snapshot)
+            KeyboardFontApplicator.applyToKeyboardViews(binding.gojuonView, snapshot)
+            KeyboardFontApplicator.applyToKeyboardViews(binding.qwertyView, snapshot)
+            KeyboardFontApplicator.applyToKeyboardViews(binding.customLayoutDefault, snapshot)
+            KeyboardFontApplicator.applyToKeyboardViews(binding.keyboardSymbolView, snapshot)
+            listOfNotNull(suggestionAdapter, suggestionAdapterFull).forEach { it.setKeyboardFont(snapshot) }
+        }
+        floatingKeyboardBinding?.let { binding ->
+            KeyboardFontApplicator.applyToKeyboardViews(binding.keyboardViewFloating, snapshot)
+            KeyboardFontApplicator.applyToKeyboardViews(binding.gojuonViewFloating, snapshot)
+            KeyboardFontApplicator.applyToKeyboardViews(binding.qwertyViewFloating, snapshot)
+            KeyboardFontApplicator.applyToKeyboardViews(binding.customLayoutFloating, snapshot)
+            KeyboardFontApplicator.applyToKeyboardViews(binding.floatingSymbolKeyboard, snapshot)
+            binding.candidatesRowView.adapter?.let {
+                if (it is SuggestionAdapter) it.setKeyboardFont(snapshot)
+            }
+        }
+        if (this::listAdapter.isInitialized) listAdapter.setKeyboardFont(snapshot)
+        shortcutAdapter?.setKeyboardFont(snapshot)
+        listOfNotNull(keyboardSelectionPopupWindow, imeSwitchPopupWindow)
+            .distinct()
+            .forEach { applyLocalFontToPopupContent(it.contentView) }
+        candidateSurfaceHost?.setKeyboardFont(snapshot)
+        if (::floatingDockView.isInitialized) floatingDockView.setKeyboardFont(snapshot)
+        if (::floatingPhysicalToolbarView.isInitialized) floatingPhysicalToolbarView.setKeyboardFont(snapshot)
+        if (::floatingModeSwitchView.isInitialized) floatingModeSwitchView.setKeyboardFont(snapshot)
+        composingGuide?.setKeyboardFont(snapshot)
+        dictionaryFloats?.setKeyboardFont(snapshot)
+        splitController?.setKeyboardFont(snapshot)
+    }
+
     private fun setupKeyboardView() {
         stopSplitKeyboard()
         Timber.d("setupKeyboardView: Called")
@@ -7193,7 +7400,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         // Keep the saved theme context underneath presentation overrides. A cold launch
         // into Cupertino must still restore the user's dynamic/seed colors on return.
         val ctx = when (appPreference.theme_mode) {
-            "default" -> {
+            "default" -> if (BuildConfig.USE_GROQ_VOICE) {
+                ContextThemeWrapper(this, R.style.Theme_MarkdownKeyboard).apply {
+                    theme.applyStyle(R.style.ThemeOverlay_SumireGroq_LauncherPalette, true)
+                }
+            } else {
                 if (isDynamicColorsEnable) {
                     val seedColor = appPreference.seedColor
 
@@ -7322,13 +7533,16 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         releaseFloatingKeyboardBackgroundVideoPlayer()
         floatingKeyboardPanel = null
         floatingKeyboardBinding = FloatingKeyboardLayoutBinding.inflate(LayoutInflater.from(ctx))
+        applyLocalKeyboardFont(localFontRepository.state.value.snapshot)
         // floatingKeyboardBinding を作り直したので configureQwertyView guard をリセット。
         isFloatingQwertyConfigured = false
+        floatingQwertyAppliedSkinId = null
         lastAppliedFloatingEditWidthPx = -1
         lastAppliedFloatingEditHeightPx = -1
 
         floatingKeyboardBinding?.let { floatingKeyboardLayoutBinding ->
             setFloatingKeyboardListeners(floatingKeyboardLayoutBinding = floatingKeyboardLayoutBinding)
+            if (BuildConfig.USE_GROQ_VOICE) applyCompactFloatingStripHeight(floatingKeyboardLayoutBinding)
             val heightPref = tenkeyHeightPreferenceValue ?: 280
             val widthPref = tenkeyWidthPreferenceValue ?: 100
             val keyboardMarginBottomPref = appPreference.keyboard_vertical_margin_bottom ?: 0
@@ -9870,10 +10084,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     private fun setKeyboardWithDeleteKeyFlickPreferences(
         flickView: FlickKeyboardView,
-        layout: KeyboardLayout
+        layout: KeyboardLayout,
+        isUserDefinedCustomLayout: Boolean = false
     ) {
         flickView.clearSumireSpecialKeyActionResolver()
-        flickView.setKeyboard(applyDeleteKeyFlickPreferences(layout))
+        flickView.setKeyboard(
+            applyDeleteKeyFlickPreferences(layout),
+            if (isUserDefinedCustomLayout) customKeyboardHitTestMode() else KeyHitTestMode.KEY_BOUNDS
+        )
     }
 
     private fun syncCustomKeyboardTogglePresentation(
@@ -9981,7 +10199,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     Timber.d("setNumberCustomLayoutTo: skip stale render id=$id stableId=$expectedStableId")
                     return@withContext
                 }
-                setKeyboardWithDeleteKeyFlickPreferences(flickView, finalLayout)
+                setKeyboardWithDeleteKeyFlickPreferences(
+                    flickView,
+                    finalLayout,
+                    isUserDefinedCustomLayout = true
+                )
             }
         }
     }
@@ -10023,7 +10245,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             val apply = {
                 if (splitInputs[state.slot] === state && state.presentedMode == expectedMode) {
                     val view = state.binding.customLayoutFloating
-                    setKeyboardWithDeleteKeyFlickPreferences(view, layout)
+                    setKeyboardWithDeleteKeyFlickPreferences(
+                        view,
+                        layout,
+                        isUserDefinedCustomLayout = true
+                    )
                     view.setKeyCharacterCase(if (expectedMode == TenKeyQWERTYMode.Number) KeyCharacterCase.AS_DEFINED else state.shift.keyCharacterCase)
                     syncSplitPresentation()
                 }
@@ -10067,7 +10293,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 if (!isCurrentCustomKeyboardSelection(layoutId = id, stableId = expectedStableId)) {
                     return@withContext
                 }
-                setKeyboardWithDeleteKeyFlickPreferences(flickView, finalLayout)
+                setKeyboardWithDeleteKeyFlickPreferences(
+                    flickView,
+                    finalLayout,
+                    isUserDefinedCustomLayout = true
+                )
                 syncCustomKeyboardTogglePresentation(flickView)
                 refreshBaselineInputBehaviorForCurrentKeyboard("custom layout input mode loaded")
             }
@@ -10079,7 +10309,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             ?.customLayout
             ?.let { flickView ->
                 applyCurrentFlickGuidePreference(flickView)
-                setKeyboardWithDeleteKeyFlickPreferences(flickView, layout)
+                setKeyboardWithDeleteKeyFlickPreferences(
+                    flickView,
+                    layout,
+                    isUserDefinedCustomLayout = true
+                )
             }
     }
 
@@ -10087,10 +10321,22 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         resetCustomToggleState()
         getNormalKeyboardSurface()
             ?.customLayout
-            ?.let { flickView -> setKeyboardWithDeleteKeyFlickPreferences(flickView, layout) }
+            ?.let { flickView ->
+                setKeyboardWithDeleteKeyFlickPreferences(
+                    flickView,
+                    layout,
+                    isUserDefinedCustomLayout = true
+                )
+            }
         getFloatingKeyboardSurface()
             ?.customLayout
-            ?.let { flickView -> setKeyboardWithDeleteKeyFlickPreferences(flickView, layout) }
+            ?.let { flickView ->
+                setKeyboardWithDeleteKeyFlickPreferences(
+                    flickView,
+                    layout,
+                    isUserDefinedCustomLayout = true
+                )
+            }
     }
 
     private fun refreshDeleteKeyFlickPreferenceLayouts() {
@@ -10186,9 +10432,16 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         qwertyView: QWERTYKeyboardView,
         mainView: MainLayoutBinding,
     ) {
-        if (isFloatingQwertyConfigured) return
+        if (isFloatingQwertyConfigured) {
+            if (floatingQwertyAppliedSkinId != keyboardSkinId) {
+                applyCurrentQwertyTheme(qwertyView)
+                floatingQwertyAppliedSkinId = keyboardSkinId
+            }
+            return
+        }
         configureQwertyView(qwertyView, mainView)
         isFloatingQwertyConfigured = true
+        floatingQwertyAppliedSkinId = keyboardSkinId
     }
 
     /**
@@ -11377,6 +11630,24 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         imeSwitchPopupWindow = null
         updateKeyboardSelectionPopupBackInvokedCallback(registered = false)
         keyboardSelectionPopupWindow = popupWindow
+        applyLocalFontToPopupContent(popupWindow.contentView)
+    }
+
+    private fun applyLocalFontToPopupContent(root: View) {
+        KeyboardFontApplicator.applyToKeyboardViews(root, KeyboardFontApplicator.processSnapshot)
+    }
+
+    /** ArrayAdapter creates rows lazily, so style each row when ListView/Spinner asks for it. */
+    private fun <T> createKeyboardFontArrayAdapter(
+        context: Context,
+        layout: Int,
+        items: List<T>,
+    ): ArrayAdapter<T> = object : ArrayAdapter<T>(context, layout, items) {
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
+            super.getView(position, convertView, parent).also(::applyLocalFontToPopupContent)
+
+        override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View =
+            super.getDropDownView(position, convertView, parent).also(::applyLocalFontToPopupContent)
     }
 
     private fun updateKeyboardSelectionPopupBackInvokedCallback(
@@ -11472,7 +11743,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
             }
 
-            val adapter = ArrayAdapter(this, R.layout.list_item_layout, items)
+            val adapter = createKeyboardFontArrayAdapter(
+                this@IMEService,
+                R.layout.list_item_layout,
+                items,
+            )
             listView.adapter = adapter
 
             replaceKeyboardSelectionPopupWindow(PopupWindow(
@@ -11560,10 +11835,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
         yomiEditText.setText(insertString)
         tangoEditText.setText(candidate.string)
-        matchModeSpinner.adapter = ArrayAdapter.createFromResource(
+        matchModeSpinner.adapter = createKeyboardFontArrayAdapter(
             context,
-            R.array.ng_word_match_mode_entries,
             android.R.layout.simple_spinner_item,
+            context.resources.getStringArray(R.array.ng_word_match_mode_entries).toList(),
         ).apply {
             setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         }
@@ -12353,6 +12628,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         }
                     }
 
+                    applyLocalFontToPopupContent(view)
                     return view
                 }
             }
@@ -12565,6 +12841,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 val templateNames = templates.map { it.word }
 
                 withContext(Dispatchers.Main) {
+                    if (BuildConfig.USE_GROQ_VOICE && templates.isEmpty()) {
+                        showToastMessage(getString(R.string.user_template_empty_hint))
+                        return@withContext
+                    }
                     val inflater =
                         getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
                     val popupView =
@@ -12573,7 +12853,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                     listView.choiceMode = ListView.CHOICE_MODE_SINGLE
 
-                    val adapter = ArrayAdapter(
+                    val adapter = createKeyboardFontArrayAdapter(
                         this@IMEService, R.layout.list_item_layout, templateNames
                     )
                     listView.adapter = adapter
@@ -12598,7 +12878,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         onKeyboardSwitchLongPressUp = false
                     }
 
-                    keyboardSelectionPopupWindow?.showAsDropDown(mainView.shortcutToolbarRecyclerview)
+                    // The docked toolbar is hidden while floating; anchor to the floating
+                    // keyboard's shortcut row instead so the list actually appears.
+                    val anchor = floatingKeyboardBinding
+                        ?.suggestionRecyclerView
+                        ?.takeIf { isKeyboardFloatingMode == true && it.isAttachedToWindow }
+                        ?: mainView.shortcutToolbarRecyclerview
+                    keyboardSelectionPopupWindow?.showAsDropDown(anchor)
                 }
             }
         }
@@ -12621,7 +12907,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                     listView.choiceMode = ListView.CHOICE_MODE_SINGLE
 
-                    val adapter = ArrayAdapter(
+                    val adapter = createKeyboardFontArrayAdapter(
                         this@IMEService, R.layout.list_item_layout, currentDates
                     )
                     listView.adapter = adapter
@@ -17705,7 +17991,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 setKeyboardSizeSwitchKeyboard(mainView)
                 if (isKeyboardFloatingMode == true) {
                     floatingKeyboardBinding?.let { floatingKeyboardLayoutBinding ->
-                        setSymbolsFloating(floatingKeyboardLayoutBinding)
+                        // Pass the requested mode so the clipboard shortcut opens clipboard history.
+                        setSymbolsFloating(
+                            floatingKeyboardLayoutBinding,
+                            resolveSymbolKeyboardInitialMode(
+                                isSymbolKeyboardShow.mode,
+                                symbolKeyboardFirstItem
+                            )
+                        )
                         if (isSymbolKeyboardShow.isShown) {
                             hideKeyboardViews(getFloatingKeyboardSurface() ?: return@let)
                             floatingKeyboardLayoutBinding.floatingSymbolKeyboard.isVisible = true
@@ -18771,6 +19064,20 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     }
 
     private fun getKeyboardSizePreferences(): KeyboardSizePreferences {
+        val prefs = getStoredKeyboardSizePreferences()
+        val qwertySize = FloatingQwertySize.resolve(
+            matchTenkeyInFloating = BuildConfig.USE_GROQ_VOICE,
+            floating = isKeyboardFloatingMode == true,
+            tenkey = KeyboardSize(prefs.widthPref, prefs.heightPref),
+            qwerty = KeyboardSize(prefs.qwertyWidthPref, prefs.qwertyHeightPref),
+        )
+        return prefs.copy(
+            qwertyWidthPref = qwertySize.widthPercent,
+            qwertyHeightPref = qwertySize.heightDp,
+        )
+    }
+
+    private fun getStoredKeyboardSizePreferences(): KeyboardSizePreferences {
         val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         return if (isPortrait) {
             KeyboardSizePreferences(
@@ -18883,11 +19190,19 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             candidatesShown = candidatesShown,
             symbolKeyboardShown = false,
         )
-        val candidateStripHeightDp = resolveCandidateStripHeightDp(
+        val configuredCandidateStripHeightDp = resolveCandidateStripHeightDp(
             candidatesShown = candidatesShown,
             candidateHeightDp = prefs.candidateHeight,
             emptyHeightDp = prefs.candidateEmptyHeight
         )
+        val candidateStripHeightDp = if (
+            !floatingCandidateSurfaceActive && keyboardSkinId == KeyboardSkinId.CUPERTINO_CLASSIC
+        ) {
+            com.kazumaproject.markdownhelperkeyboard.ime_service.composing_guide.CupertinoClassicCandidateChrome
+                .resolveDockedStripHeightDp(configuredCandidateStripHeightDp)
+        } else {
+            configuredCandidateStripHeightDp
+        }
         val baseKeyboardHeight = heightPx + if (floatingCandidateSurfaceActive) 0 else applicationContext.dpToPx(candidateStripHeightDp)
 
         // Insets や画面構成の変化による再計算でも、現在表示中の候補タブ領域を
@@ -18957,6 +19272,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         applyKeyboardLayoutParameters(
             mainView = mainView,
             heightPx = heightPx,
+            candidateStripHeightPx = when {
+                floatingCandidateSurfaceActive -> null
+                keyboardSkinId == KeyboardSkinId.CUPERTINO_CLASSIC ->
+                    applicationContext.dpToPx(candidateStripHeightDp)
+                else -> ViewGroup.LayoutParams.WRAP_CONTENT
+            },
             finalKeyboardHeight = windowHeight,
             backgroundSurfaceHeight = backgroundSurfaceHeight,
             finalKeyboardWidth = finalKeyboardWidth,
@@ -19048,6 +19369,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private fun applyKeyboardLayoutParameters(
         mainView: MainLayoutBinding,
         heightPx: Int,
+        candidateStripHeightPx: Int?,
         finalKeyboardHeight: Int,
         backgroundSurfaceHeight: Int,
         finalKeyboardWidth: Int,
@@ -19084,6 +19406,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         changed = true
                     }
                 } else {
+                    candidateStripHeightPx?.let { candidateHeight ->
+                        if (forceLayout || params.height != candidateHeight) {
+                            params.height = candidateHeight
+                            changed = true
+                        }
+                    }
                     if (forceLayout || params.bottomMargin != heightPx) {
                         params.bottomMargin = heightPx
                         changed = true
@@ -21683,7 +22011,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         vibrate()
         closeViewsThatConflictWithKeyboardLayoutEdit()
 
-        val target = KeyboardLayoutEditTarget.from(qwertyMode.value)
+        // The Groq build shares one floating size between TenKey and QWERTY (see FloatingQwertySize).
+        val target = if (BuildConfig.USE_GROQ_VOICE && surface == KeyboardLayoutEditSurface.Floating) {
+            KeyboardLayoutEditTarget.TenKeyFamily
+        } else {
+            KeyboardLayoutEditTarget.from(qwertyMode.value)
+        }
         val orientation = currentKeyboardLayoutEditOrientation()
         val state = KeyboardLayoutEditState.Enabled(
             surface = surface,
@@ -21827,6 +22160,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             liveConversionEnabled = isLiveConversionEnable == true,
             learningPaused = learningPausedForSession,
             handwritingActive = handwritingModeActive,
+            voiceInputActive = groqVoiceInput?.isRecording == true,
         ) + dictionaryFloats?.activeShortcuts.orEmpty()
 
         shortcutAdapter?.setActiveShortcutTypes(activeTypes)
@@ -22444,6 +22778,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 toggleKeyboardLayoutEditMode(mainView)
             }
 
+            ShortcutType.HIDE_KEYBOARD -> {
+                requestHideSelf(InputMethodManager.HIDE_NOT_ALWAYS)
+            }
+
             ShortcutType.KEYBOARD_FLOATING_TOGGLE -> {
                 toggleKeyboardFloatingModeFromShortcut()
             }
@@ -22477,7 +22815,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             ShortcutType.VOICE_INPUT -> {
-                startVoiceInput(mainView)
+                val groqVoice = groqVoiceInput
+                if (groqVoice != null) {
+                    toggleGroqVoiceInput(groqVoice)
+                } else {
+                    startVoiceInput(mainView)
+                }
             }
 
             ShortcutType.GEMMA_IMAGE -> {
@@ -22960,27 +23303,31 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         configureQwertyView(mainView.qwertyView, mainView)
     }
 
+    private fun applyCurrentQwertyTheme(qwertyView: QWERTYKeyboardView) {
+        qwertyView.applyKeyboardTheme(
+            skinId = keyboardSkinId,
+            themeMode = keyboardThemeMode ?: "default",
+            currentNightMode = currentNightMode,
+            isDynamicColorEnabled = DynamicColors.isDynamicColorAvailable(),
+            customBgColor = customThemeBgColor ?: Color.WHITE,
+            customKeyColor = customThemeKeyColor ?: Color.WHITE,
+            customSpecialKeyColor = customThemeSpecialKeyColor ?: Color.GRAY,
+            customKeyTextColor = customThemeKeyTextColor ?: Color.BLACK,
+            customSpecialKeyTextColor = customThemeSpecialKeyTextColor ?: Color.BLACK,
+            liquidGlassEnable = liquidGlassThemePreference ?: false,
+            customBorderEnable = customKeyBorderEnablePreference ?: false,
+            customBorderColor = customKeyBorderEnableColor ?: Color.BLACK,
+            liquidGlassKeyAlphaEnable = liquidGlassKeyBlurRadiousPreference ?: 255,
+            borderWidth = customKeyBorderWidth ?: 1
+        )
+    }
+
     private fun configureQwertyView(
         qwertyView: QWERTYKeyboardView,
         mainView: MainLayoutBinding,
     ) {
+        applyCurrentQwertyTheme(qwertyView)
         qwertyView.apply {
-            applyKeyboardTheme(
-                skinId = keyboardSkinId,
-                themeMode = keyboardThemeMode ?: "default",
-                currentNightMode = currentNightMode,
-                isDynamicColorEnabled = DynamicColors.isDynamicColorAvailable(),
-                customBgColor = customThemeBgColor ?: Color.WHITE,
-                customKeyColor = customThemeKeyColor ?: Color.WHITE,
-                customSpecialKeyColor = customThemeSpecialKeyColor ?: Color.GRAY,
-                customKeyTextColor = customThemeKeyTextColor ?: Color.BLACK,
-                customSpecialKeyTextColor = customThemeSpecialKeyTextColor ?: Color.BLACK,
-                liquidGlassEnable = liquidGlassThemePreference ?: false,
-                customBorderEnable = customKeyBorderEnablePreference ?: false,
-                customBorderColor = customKeyBorderEnableColor ?: Color.BLACK,
-                liquidGlassKeyAlphaEnable = liquidGlassKeyBlurRadiousPreference ?: 255,
-                borderWidth = customKeyBorderWidth ?: 1
-            )
             setFlickSensitivityValue(flickSensitivityPreferenceValue ?: 100)
             setFlickThresholdShape(flickThresholdShapePreferenceValue)
             setLongPressTimeout((longPressTimeoutPreferenceValue ?: 300).toLong())
@@ -24970,6 +25317,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         mainLayoutBinding = null
         floatingKeyboardBinding = null
         isFloatingQwertyConfigured = false
+        floatingQwertyAppliedSkinId = null
         closeConnection()
         scope.cancel()
         ioScope.cancel()
@@ -26476,7 +26824,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 val popupView = inflater.inflate(R.layout.popup_list_layout, mainView.root, false)
                 val listView = popupView.findViewById<ListView>(R.id.popup_listview).apply {
                     choiceMode = ListView.CHOICE_MODE_SINGLE
-                    adapter = ArrayAdapter(
+                    adapter = createKeyboardFontArrayAdapter(
                         this@IMEService,
                         R.layout.list_item_layout,
                         macros.map { it.name },

@@ -17,7 +17,7 @@
             android:title="@string/pref_clipboard_preview_title" />
 
         <SwitchPreferenceCompat
-            android:defaultValue="false"
+            android:defaultValue="@bool/clipboard_preview_tap_delete_default"
             android:dependency="clipboard_preview_enable_preference"
             android:key="clipboard_preview_tap_delete_preference"
             android:summary="@string/pref_clipboard_tap_delete_summary"
@@ -46,14 +46,14 @@
         <SwitchPreferenceCompat
             android:key="shortcut_toolbar_visibility_preference"
             android:title="@string/shortcut_toolbar_title"
-            app:defaultValue="false"
+            app:defaultValue="@bool/shortcut_toolbar_visible_default"
             app:summary="@string/shortcut_toolbar_summary" />
 
         <SwitchPreferenceCompat
             android:dependency="shortcut_toolbar_visibility_preference"
             android:key="shortcut_toolbar_integrated_in_suggestion_preference"
             android:title="@string/shortcut_toolbar_integrated_in_suggestion_title"
-            app:defaultValue="false"
+            app:defaultValue="@bool/shortcut_toolbar_integrated_default"
             app:summary="@string/shortcut_toolbar_integrated_in_suggestion_summary" />
 
         <Preference
