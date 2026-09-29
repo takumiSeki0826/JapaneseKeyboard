@@ -1,5 +1,6 @@
 package com.kazumaproject.markdownhelperkeyboard.ime_service.adapters
 
+import com.kazumaproject.markdownhelperkeyboard.ime_service.autofill.InlineSuggestionSizing
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.PorterDuff
@@ -1375,10 +1376,13 @@ class SuggestionAdapter internal constructor(
 
             VIEW_TYPE_INLINE_SUGGESTION -> {
                 val density = parent.resources.displayMetrics.density
+                val itemHeight = InlineSuggestionSizing.current.containerHeightDp
+                    ?.let { (it * density).toInt() }
+                    ?: ViewGroup.LayoutParams.MATCH_PARENT
                 val itemView = FrameLayout(parent.context).apply {
                     layoutParams = RecyclerView.LayoutParams(
                         ViewGroup.LayoutParams.WRAP_CONTENT,
-                        (58 * density).toInt(),
+                        itemHeight,
                     )
                     clipChildren = true
                     clipToPadding = true

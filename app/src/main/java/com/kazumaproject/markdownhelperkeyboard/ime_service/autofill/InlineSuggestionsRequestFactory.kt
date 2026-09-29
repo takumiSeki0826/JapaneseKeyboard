@@ -23,7 +23,6 @@ internal object InlineSuggestionsRequestFactory {
     const val MAX_SUGGESTION_COUNT = 4
     private const val MIN_CHIP_WIDTH_DP = 64
     private const val MAX_CHIP_WIDTH_DP = 240
-    private const val CHIP_HEIGHT_DP = 48
 
     // These style mutators are the AndroidX Inline Autofill API used by the AOSP
     // sample, but the artifact currently marks them RestrictedApi for lint.
@@ -81,7 +80,7 @@ internal object InlineSuggestionsRequestFactory {
         val maxWidth = dp(context, MAX_CHIP_WIDTH_DP)
             .coerceAtMost(context.resources.displayMetrics.widthPixels)
             .coerceAtLeast(minWidth)
-        val height = dp(context, CHIP_HEIGHT_DP)
+        val height = dp(context, InlineSuggestionSizing.current.chipHeightDp)
         val specs = ArrayList<InlinePresentationSpec>(MAX_SUGGESTION_COUNT).apply {
             repeat(MAX_SUGGESTION_COUNT) {
                 add(

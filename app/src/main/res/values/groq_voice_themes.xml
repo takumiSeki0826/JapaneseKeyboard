@@ -1,23 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="groq_launcher_base">#FF1A1A1A</color>
+    <color name="groq_launcher_key">#FF333333</color>
+    <color name="groq_launcher_key_pressed">#FF4A4A4A</color>
+    <color name="groq_launcher_accent">#FFD1432B</color>
+    <color name="groq_launcher_accent_pressed">#FFA8321F</color>
+    <color name="groq_launcher_text">#FFF5F5F5</color>
+    <color name="groq_launcher_text_muted">#FF8A8A8A</color>
+
     <!--
         Groq build: fixes the keyboard's Material color roles to the owner's launcher palette
         (neutral black/gray with one orange accent) instead of seeding a tonal palette,
         which tinted every surface brown and muted the accent. Key shapes are unchanged.
+        Colors must be @color references: some views read these attrs via resourceId.
     -->
     <style name="ThemeOverlay.SumireGroq.LauncherPalette" parent="">
-        <item name="colorSurface">#FF1A1A1A</item>
-        <item name="colorSurfaceContainer">#FF1A1A1A</item>
-        <item name="colorSurfaceVariant">#FF333333</item>
-        <item name="colorSurfaceContainerHigh">#FF4A4A4A</item>
-        <item name="colorSurfaceContainerHighest">#FF333333</item>
-        <item name="colorSecondaryContainer">#FFD1432B</item>
-        <item name="colorSecondaryVariant">#FFA8321F</item>
-        <item name="colorOnSecondaryContainer">#FFF5F5F5</item>
-        <item name="colorPrimary">#FFD1432B</item>
-        <item name="colorOnPrimary">#FFF5F5F5</item>
-        <item name="colorOnSurface">#FFF5F5F5</item>
-        <item name="colorOnSurfaceVariant">#FF8A8A8A</item>
-        <item name="colorControlNormal">#FFF5F5F5</item>
+        <item name="colorSurface">@color/groq_launcher_base</item>
+        <item name="colorSurfaceContainer">@color/groq_launcher_base</item>
+        <item name="colorSurfaceVariant">@color/groq_launcher_key</item>
+        <item name="colorSurfaceContainerHigh">@color/groq_launcher_key_pressed</item>
+        <item name="colorSurfaceContainerHighest">@color/groq_launcher_key</item>
+        <item name="colorSecondaryContainer">@color/groq_launcher_accent</item>
+        <item name="colorSecondaryVariant">@color/groq_launcher_accent_pressed</item>
+        <item name="colorOnSecondaryContainer">@color/groq_launcher_text</item>
+        <item name="colorPrimary">@color/groq_launcher_accent</item>
+        <item name="colorOnPrimary">@color/groq_launcher_text</item>
+        <item name="colorOnSurface">@color/groq_launcher_text</item>
+        <item name="colorOnSurfaceVariant">@color/groq_launcher_text_muted</item>
+        <item name="colorControlNormal">@color/groq_launcher_text</item>
     </style>
 </resources>
