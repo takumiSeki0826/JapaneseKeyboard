@@ -4,7 +4,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.RectF
+import android.graphics.Rect
 import android.graphics.Typeface
 import android.util.AttributeSet
 import androidx.appcompat.content.res.AppCompatResources
@@ -54,27 +54,12 @@ class InputModeSwitch(context: Context, attrs: AttributeSet) :
     }
 
     private fun renderModeIcon() {
-        if (fontSnapshot.typeface != null) {
-            setImageDrawable(null)
-            invalidate()
-            return
-        }
-        val resId = resolveInputModeSwitchIconResId(
-            inputMode = currentInputMode,
-            isGojuon = isGojuonMode,
-            useThreeStateKeyboard = useThreeStateKeyboard,
-            twoStateNumberReturnTarget = numberReturnTarget,
-        )
-        setImageDrawable(AppCompatResources.getDrawable(context, resId))
+        // 英字モードを廃止したため、切り替えキーは常に「あ・1」のラベルを自前で描画する。
+        setImageDrawable(null)
+        invalidate()
     }
 
     override fun onDraw(canvas: Canvas) {
-        if (fontSnapshot.typeface == null) {
-            super.onDraw(canvas)
-            return
-        }
-        // Existing mode icons outline letters as paths. Render their semantic labels
-        // with the selected typeface while keeping the same three-state control.
         super.onDraw(canvas)
         val iconWidth = width - paddingLeft - paddingRight
         val iconHeight = height - paddingTop - paddingBottom
@@ -83,52 +68,52 @@ class InputModeSwitch(context: Context, attrs: AttributeSet) :
         val tint = imageTintList?.getColorForState(drawableState, fallbackColor)
         val selectedColor = tint ?: ContextCompat.getColor(context, R.color.keyboard_icon_color)
         val idleColor = tint ?: 0xff839096.toInt()
-        val (labels, positions, selectedIndex) = when {
-            useThreeStateKeyboard -> {
-                val selected = when (currentInputMode) {
-                    InputMode.ModeJapanese -> 0
-                    InputMode.ModeEnglish -> 1
-                    InputMode.ModeNumber -> 2
-                }
-                Triple(listOf("あ", "a", "1"), floatArrayOf(.28f, .5f, .72f), selected)
-            }
-            currentInputMode == InputMode.ModeNumber -> {
-                val returnLabel = if (numberReturnTarget == TwoStateNumberReturnTarget.Japanese) "あ" else "a"
-                Triple(listOf(returnLabel, "1"), floatArrayOf(.38f, .62f), 1)
-            }
-            else -> {
-                val selected = if (currentInputMode == InputMode.ModeJapanese) 0 else 1
-                Triple(listOf("あ", "a"), floatArrayOf(.38f, .62f), selected)
-            }
-        }
+        // フリック系キーボードの入力モードは「あ」「1」の2状態。旧状態の英字は「あ」として扱う。
+        val selectedIndex = if (currentInputMode == InputMode.ModeNumber) 1 else 0
+        val labels = listOf("あ", "1")
+        val positions = floatArrayOf(.38f, .62f)
+        val glyphHeight = iconHeight * 0.44f
+        val glyphWidth = iconWidth * 0.22f
+        val typeface = fontSnapshot.typeface ?: Typeface.DEFAULT
+        // 「あ」と「1」は同じ文字サイズで描く（個別に区画へ拡大すると、縦長の「1」だけ大きくなる）。
+        val textSize = fitTextSize(labels.first(), typeface, glyphWidth, glyphHeight)
+        val bounds = Rect()
         labels.forEachIndexed { index, label ->
             val baseColor = if (index == selectedIndex) selectedColor else idleColor
-            val color = Color.argb(
+            labelPaint.color = Color.argb(
                 Color.alpha(baseColor) * imageAlpha / 255,
                 Color.red(baseColor),
                 Color.green(baseColor),
                 Color.blue(baseColor),
             )
+            labelPaint.typeface = Typeface.create(
+                typeface,
+                if (index == selectedIndex) Typeface.BOLD else Typeface.NORMAL
+            )
+            labelPaint.textAlign = Paint.Align.LEFT
+            labelPaint.textSize = textSize
+            labelPaint.getTextBounds(label, 0, label.length, bounds)
             val centerX = paddingLeft + iconWidth * positions[index]
-            KeyboardFontGlyphDrawable.drawGlyph(
-                canvas = canvas,
-                paint = labelPaint,
-                text = label,
-                region = RectF(
-                    centerX - iconWidth * 0.11f,
-                    paddingTop + iconHeight * 0.28f,
-                    centerX + iconWidth * 0.11f,
-                    paddingTop + iconHeight * 0.72f,
-                ),
-                color = color,
-                typeface = fontSnapshot.typeface ?: Typeface.DEFAULT,
-                style = if (!useThreeStateKeyboard && index == selectedIndex) {
-                    Typeface.BOLD
-                } else {
-                    Typeface.NORMAL
-                },
+            val centerY = paddingTop + iconHeight * 0.5f
+            canvas.drawText(
+                label,
+                centerX - (bounds.left + bounds.right) / 2f,
+                centerY - (bounds.top + bounds.bottom) / 2f,
+                labelPaint
             )
         }
+    }
+
+    private fun fitTextSize(text: String, typeface: Typeface, maxWidth: Float, maxHeight: Float): Float {
+        labelPaint.typeface = typeface
+        labelPaint.textSize = 100f
+        val bounds = Rect()
+        labelPaint.getTextBounds(text, 0, text.length, bounds)
+        val scale = minOf(
+            maxWidth / bounds.width().coerceAtLeast(1),
+            maxHeight / bounds.height().coerceAtLeast(1)
+        )
+        return (100f * scale).coerceAtLeast(1f)
     }
 }
 

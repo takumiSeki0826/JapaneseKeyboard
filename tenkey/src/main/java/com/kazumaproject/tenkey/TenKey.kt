@@ -48,6 +48,7 @@ import com.kazumaproject.core.domain.state.GestureType
 import com.kazumaproject.core.domain.state.InputMode
 import com.kazumaproject.core.domain.state.InputMode.ModeEnglish.next
 import com.kazumaproject.core.domain.state.PressedKey
+import com.kazumaproject.core.domain.state.nextFlickInputMode
 import com.kazumaproject.core.domain.state.TwoStateNumberReturnTarget
 import com.kazumaproject.core.domain.state.toInputMode
 import com.kazumaproject.core.domain.state.toTwoStateNumberReturnTargetOrNull
@@ -2623,20 +2624,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
     /** Cycle through input modes when the switch key is clicked **/
     private fun handleClickInputModeSwitch() {
-        // ← READ from StateFlow.value:
-        val newInputMode = if (useThreeStateKeyboard) {
-            when (currentInputMode.value) {
-                InputMode.ModeJapanese -> InputMode.ModeEnglish
-                InputMode.ModeEnglish -> InputMode.ModeNumber
-                InputMode.ModeNumber -> InputMode.ModeJapanese
-            }
-        } else {
-            when (currentInputMode.value) {
-                InputMode.ModeJapanese -> InputMode.ModeEnglish
-                InputMode.ModeEnglish -> InputMode.ModeJapanese
-                InputMode.ModeNumber -> twoStateNumberReturnTarget.toInputMode()
-            }
-        }
+        // 英字モードは巡回に含めない（日本語 ⇔ 数字）。
+        val newInputMode = nextFlickInputMode(currentInputMode.value)
         // ← WRITE to MutableStateFlow:
         _currentInputMode.update { newInputMode }
         inputModeChangedListener?.invoke(newInputMode)

@@ -2591,7 +2591,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     }
                     var minimumHeightDp = 180
                     val forcedNumber = currentInputType in numberTypes
-                    val forcedPasswordQwerty = currentInputType in passwordTypesWithOutNumber && switchQWERTYPassword == true
+                    val forcedPasswordQwerty = QwertyAutoSwitchPolicy.shouldUseQwerty(currentInputType, switchQWERTYPassword == true)
                     val initialInputMode = when {
                         forcedNumber -> InputMode.ModeNumber
                         selection.type == KeyboardType.QWERTY || forcedPasswordQwerty -> InputMode.ModeEnglish
@@ -5674,7 +5674,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                     InputMode.ModeEnglish -> {
                         if (switchQWERTYPassword == true) {
-                            if (currentInputType in passwordTypesWithOutNumber) {
+                            if (currentInputType in QwertyAutoSwitchPolicy.types) {
                                 updateQwertyOnActiveSurface { resetQWERTYKeyboard() }
                                 _tenKeyQWERTYMode.update { TenKeyQWERTYMode.TenKeyQWERTY }
                             } else {
@@ -5711,7 +5711,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         ).resolvedKeyboard == KeyboardType.SPLIT
         if (splitSelected) {
             resetKeyboard()
-        } else if (currentInputType in passwordTypesWithOutNumber) {
+        } else if (currentInputType in passwordTypesWithOutNumber ||
+            QwertyAutoSwitchPolicy.shouldUseQwerty(currentInputType, switchQWERTYPassword == true)
+        ) {
             if (switchQWERTYPassword == true) {
                 Timber.d("current input type in OnStartView passwordTypesWithOutNumber: [$currentInputType] [$restarting] [${currentInputModeForSession}] [${qwertyMode.value}]")
                 currentInputModeForSession = InputMode.ModeEnglish
@@ -13727,7 +13729,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         val state = resolveCurrentRestartInputModeState()
         val persistence = RestartInputModePreference.resolvePersistenceValue(
             currentInputType = currentInputType,
-            passwordTypesWithoutNumber = passwordTypesWithOutNumber,
+            passwordTypesWithoutNumber = if (switchQWERTYPassword == true) {
+                QwertyAutoSwitchPolicy.types
+            } else {
+                passwordTypesWithOutNumber
+            },
             numberTypes = numberTypes,
             state = state,
             tenkeyRestoreEnabled = tenkeyRestoreInputModeOnRestart,
@@ -14267,9 +14273,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     KeyAction.Backspace -> {}
                     KeyAction.ChangeInputMode -> {
                         // 現在のモードに応じて次のモードを決定
+                        // 英字は巡回に含めない（ひらがな ⇔ 記号・数字）
                         customKeyboardMode = when (customKeyboardMode) {
-                            KeyboardInputMode.HIRAGANA -> KeyboardInputMode.ENGLISH
-                            KeyboardInputMode.ENGLISH -> KeyboardInputMode.SYMBOLS
+                            KeyboardInputMode.HIRAGANA -> KeyboardInputMode.SYMBOLS
+                            KeyboardInputMode.ENGLISH -> KeyboardInputMode.HIRAGANA
                             KeyboardInputMode.SYMBOLS -> KeyboardInputMode.HIRAGANA
                         }
                         updateKeyboardLayout()
@@ -15234,9 +15241,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                     KeyAction.ChangeInputMode -> {
                         // 現在のモードに応じて次のモードを決定
+                        // 英字は巡回に含めない（ひらがな ⇔ 記号・数字）
                         customKeyboardMode = when (customKeyboardMode) {
-                            KeyboardInputMode.HIRAGANA -> KeyboardInputMode.ENGLISH
-                            KeyboardInputMode.ENGLISH -> KeyboardInputMode.SYMBOLS
+                            KeyboardInputMode.HIRAGANA -> KeyboardInputMode.SYMBOLS
+                            KeyboardInputMode.ENGLISH -> KeyboardInputMode.HIRAGANA
                             KeyboardInputMode.SYMBOLS -> KeyboardInputMode.HIRAGANA
                         }
                         createNewKeyboardLayoutForSumire()
@@ -23871,7 +23879,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         if (variation.isNotEmpty()) {
                             val variationChar = variation.first().toRomajiQwertyFlickOutputChar()
                             if (switchQWERTYPassword == true) {
-                                if (currentInputType in passwordTypesWithOutNumber) {
+                                if (currentInputType in QwertyAutoSwitchPolicy.types) {
                                     handleTap(
                                         variationChar.toHankakuKigou(),
                                         insertString,

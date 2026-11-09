@@ -25,13 +25,12 @@ class GojuonKeyboardViewInputModeChangedListenerTest {
                 currentModesAtNotification.add(view.currentInputMode.get())
             }
 
-            repeat(3) {
+            repeat(2) {
                 clickInputModeSwitch(view)
             }
         }
 
         val expectedModes = listOf(
-            InputMode.ModeEnglish,
             InputMode.ModeNumber,
             InputMode.ModeJapanese
         )

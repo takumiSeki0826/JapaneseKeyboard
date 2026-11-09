@@ -25,7 +25,7 @@ class TenKeyInputModeChangedListenerTest {
 
         clickInputModeSwitch(tenKey)
 
-        assertEquals(listOf(InputMode.ModeEnglish), notifiedModes)
+        assertEquals(listOf(InputMode.ModeNumber), notifiedModes)
     }
 
     @Test
@@ -49,24 +49,24 @@ class TenKeyInputModeChangedListenerTest {
     }
 
     @Test
-    fun twoStateNumberModeReturnsToEnglishWhenOpenedFromEnglish() {
+    fun inputModeSwitchCyclesBetweenJapaneseAndNumberWithoutEnglish() {
         val tenKey = createTenKey()
         val notifiedModes = mutableListOf<InputMode>()
         tenKey.setOnInputModeChangedListener { inputMode ->
             notifiedModes.add(inputMode)
         }
-        tenKey.setUseThreeStateKeyboard(false)
-        tenKey.setUseQwertyNumberWhenThreeStateOff(false)
 
-        clickInputModeSwitch(tenKey)
-        switchToNumberMode(tenKey)
-        clickInputModeSwitch(tenKey)
+        repeat(4) { clickInputModeSwitch(tenKey) }
 
         assertEquals(
-            listOf(InputMode.ModeEnglish, InputMode.ModeNumber, InputMode.ModeEnglish),
+            listOf(
+                InputMode.ModeNumber,
+                InputMode.ModeJapanese,
+                InputMode.ModeNumber,
+                InputMode.ModeJapanese
+            ),
             notifiedModes
         )
-        assertEquals(InputMode.ModeEnglish, tenKey.currentInputMode.value)
     }
 
     @Test

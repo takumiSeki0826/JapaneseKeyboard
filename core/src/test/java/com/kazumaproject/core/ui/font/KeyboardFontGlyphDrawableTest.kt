@@ -192,14 +192,22 @@ class KeyboardFontGlyphDrawableTest {
     }
 
     @Test
-    fun twoStateInputModeSwitchPreservesSelectedBoldLabel() {
+    fun inputModeSwitchPreservesSelectedBoldLabelBetweenKanaAndNumber() {
+        val japanese = renderInputModeSwitch(InputMode.ModeJapanese)
+        val number = renderInputModeSwitch(InputMode.ModeNumber)
+        val leftKana = RectF(0.27f * japanese.width, 0.28f * japanese.height, 0.49f * japanese.width, 0.72f * japanese.height)
+        val rightNumber = RectF(0.51f * japanese.width, 0.28f * japanese.height, 0.73f * japanese.width, 0.72f * japanese.height)
+
+        assertTrue("selected kana label should be bold", countInk(japanese, leftKana) > countInk(number, leftKana))
+        assertTrue("selected number label should be bold", countInk(number, rightNumber) > countInk(japanese, rightNumber))
+    }
+
+    @Test
+    fun inputModeSwitchTreatsLegacyEnglishStateAsKana() {
         val japanese = renderInputModeSwitch(InputMode.ModeJapanese)
         val english = renderInputModeSwitch(InputMode.ModeEnglish)
-        val leftKana = RectF(0.27f * japanese.width, 0.28f * japanese.height, 0.49f * japanese.width, 0.72f * japanese.height)
-        val rightLatin = RectF(0.51f * japanese.width, 0.28f * japanese.height, 0.73f * japanese.width, 0.72f * japanese.height)
 
-        assertTrue("selected kana label should be bold", countInk(japanese, leftKana) > countInk(english, leftKana))
-        assertTrue("selected Latin label should be bold", countInk(english, rightLatin) > countInk(japanese, rightLatin))
+        assertTrue("legacy English state should render exactly like kana", japanese.sameAs(english))
     }
 
     private fun renderInputModeSwitch(inputMode: InputMode): Bitmap {

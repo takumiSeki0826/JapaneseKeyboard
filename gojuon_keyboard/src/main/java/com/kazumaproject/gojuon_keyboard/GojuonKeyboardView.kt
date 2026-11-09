@@ -65,6 +65,7 @@ import com.kazumaproject.core.domain.state.GestureType
 import com.kazumaproject.core.domain.state.InputMode
 import com.kazumaproject.core.domain.state.InputMode.ModeEnglish.next
 import com.kazumaproject.core.domain.state.PressedKey
+import com.kazumaproject.core.domain.state.nextFlickInputMode
 import com.kazumaproject.core.ui.effect.Blur
 import com.kazumaproject.core.ui.key_window.KeyWindowLayout
 import com.kazumaproject.gojuon_keyboard.databinding.GojuonLayoutBinding
@@ -3534,7 +3535,22 @@ class GojuonKeyboardView @JvmOverloads constructor(
     }
 
     private fun handleClickInputModeSwitch() {
-        val newInputMode = when (currentInputMode.get()) {
+        // 英字モードは巡回に含めない（日本語 ⇔ 数字）。
+        // レイアウトは 日本語→英字→数字→日本語 の順に段階的に変形する作りのため、
+        // 英字の段階は画面に出さずに通過して目的のモードまで進める。
+        val targetInputMode = nextFlickInputMode(currentInputMode.get())
+        var newInputMode = currentInputMode.get()
+        while (newInputMode != targetInputMode) {
+            newInputMode = advanceGojuonLayoutOneStep(newInputMode)
+        }
+        currentInputMode.set(newInputMode)
+        binding.keySwitchKeyMode.setInputMode(newInputMode, isGojuon = true)
+        inputModeChangedListener?.invoke(newInputMode)
+    }
+
+    /** レイアウトを1段階進め、進んだ先のモードを返す（日本語→英字→数字→日本語）。 */
+    private fun advanceGojuonLayoutOneStep(from: InputMode): InputMode {
+        return when (from) {
             InputMode.ModeJapanese -> {
                 setKeysInEnglishText(false)
                 binding.apply {
@@ -3730,9 +3746,6 @@ class GojuonKeyboardView @JvmOverloads constructor(
                 InputMode.ModeJapanese
             }
         }
-        currentInputMode.set(newInputMode)
-        binding.keySwitchKeyMode.setInputMode(newInputMode, isGojuon = true)
-        inputModeChangedListener?.invoke(newInputMode)
     }
 
     fun resetLayout() {

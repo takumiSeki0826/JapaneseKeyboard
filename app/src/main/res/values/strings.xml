@@ -667,9 +667,9 @@
     <string name="qwerty_keymap_symbol_preference">Show Symbol Keymap</string>
     <string name="qwerty_keymap_preference_summary_on">Show the symbol keymap on long press in the QWERTY keyboard.</string>
     <string name="qwerty_keymap_preference_summary_off">Do not show the symbol keymap on long press in the QWERTY keyboard.</string>
-    <string name="switch_qwerty_preference_title">Input Password</string>
-    <string name="switch_qwerty_password_summary_on">Switch to QWERTY keyboard when entering a password.</string>
-    <string name="switch_qwerty_password_summary_off">Keep using the ten key when entering a password.</string>
+    <string name="switch_qwerty_preference_title">Password and email fields</string>
+    <string name="switch_qwerty_password_summary_on">Switch to the QWERTY keyboard in password and email address fields.</string>
+    <string name="switch_qwerty_password_summary_off">Keep using the ten key in password and email address fields.</string>
     <string name="kana_layout_category_preference_title">Kana input layout setting</string>
     <string name="kana_input_qwerty_preference_title">QWERTY for alphabet</string>
     <string name="kana_input_qwerty_preference_summary">Use QWERTY layout for alphabet input mode</string>
