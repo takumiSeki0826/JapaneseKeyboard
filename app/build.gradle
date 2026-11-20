@@ -107,9 +107,12 @@ android {
 
     buildTypes {
         debug {
-            // 開発用ビルドを実用中のアプリと別アプリとして並べて入れ、上書き(デグレ)を防ぐ
-            applicationIdSuffix ".dev"
-            versionNameSuffix "-dev"
+            // ./gradlew ... -PdevApp を付けたときだけ、実用中のアプリと別アプリ(.dev)として
+            // 並べて入れられる。付けなければ通常のアプリIDで、実用版を上書きする。
+            if (project.hasProperty('devApp')) {
+                applicationIdSuffix ".dev"
+                versionNameSuffix "-dev"
+            }
         }
         release {
             def releaseSigning = signingConfigs.findByName("release")
