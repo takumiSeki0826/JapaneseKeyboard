@@ -29,7 +29,7 @@
         app:layout_constraintBottom_toTopOf="@id/bottom_bar"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/category_tab_layout" />
+        app:layout_constraintTop_toBottomOf="@id/top_barrier" />
 
     <!-- 既存の BottomBar（戻る / モード切替 / 削除） -->
     <LinearLayout
@@ -73,5 +73,97 @@
             android:scaleType="center"
             android:src="@drawable/backspace_24px"
             android:tint="@color/tab_unselected" />
+    </LinearLayout>
+
+    <!-- 絵文字モードのときカテゴリタブの代わりに出す検索欄（タップで検索パネルを開く） -->
+    <FrameLayout
+        android:id="@+id/emoji_search_bar"
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:background="@color/suggestion_view_bg"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/emoji_search_field"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginHorizontal="8dp"
+            android:layout_marginVertical="6dp"
+            android:background="@drawable/symbol_keyboard_buttons_bg"
+            android:contentDescription="Search emoji"
+            android:drawablePadding="8dp"
+            android:drawableStart="@drawable/baseline_search_24"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="12dp"
+            android:text="Search emoji"
+            android:textSize="15sp" />
+    </FrameLayout>
+
+    <androidx.constraintlayout.widget.Barrier
+        android:id="@+id/top_barrier"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:barrierDirection="bottom"
+        app:constraint_referenced_ids="category_tab_layout,emoji_search_bar" />
+
+    <!-- 絵文字検索パネル（検索中だけ全面に重ねる） -->
+    <LinearLayout
+        android:id="@+id/emoji_search_panel"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@color/keyboard_bg"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/baseline_search_24" />
+
+            <TextView
+                android:id="@+id/emoji_search_query"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:singleLine="true"
+                android:textSize="18sp" />
+
+            <ImageView
+                android:id="@+id/emoji_search_close"
+                android:layout_width="48dp"
+                android:layout_height="match_parent"
+                android:contentDescription="Close search"
+                android:padding="14dp"
+                android:src="@drawable/ic_close" />
+        </LinearLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/emoji_search_results"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:overScrollMode="never" />
+
+        <LinearLayout
+            android:id="@+id/emoji_search_keyboard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
