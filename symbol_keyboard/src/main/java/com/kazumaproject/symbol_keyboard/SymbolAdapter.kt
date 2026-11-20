@@ -91,6 +91,13 @@ class SymbolAdapter :
         notifyDataSetChanged()
     }
 
+    /** 見出し行かどうか（絵文字の連続一覧で、履歴・カテゴリ名を出すのに使う）。 */
+    fun isHeader(position: Int): Boolean =
+        position in 0 until itemCount && peek(position)?.startsWith(HEADER_PREFIX) == true
+
+    override fun getItemViewType(position: Int): Int =
+        if (isHeader(position)) VIEW_TYPE_HEADER else VIEW_TYPE_SYMBOL
+
     inner class SymbolViewHolder(itemView: View) :
         RecyclerView.ViewHolder(itemView) {
         val symbolTextView: MaterialTextView = itemView.findViewById(R.id.symbol_text)
@@ -101,14 +108,14 @@ class SymbolAdapter :
             // 通常クリック
             itemView.setOnClickListener {
                 val pos = bindingAdapterPosition
-                if (pos != RecyclerView.NO_POSITION) {
+                if (pos != RecyclerView.NO_POSITION && !isHeader(pos)) {
                     getItem(pos)?.let { onItemClickListener?.invoke(it) }
                 }
             }
             // 長押しクリック
             itemView.setOnLongClickListener {
                 val pos = bindingAdapterPosition
-                if (pos != RecyclerView.NO_POSITION) {
+                if (pos != RecyclerView.NO_POSITION && !isHeader(pos)) {
                     getItem(pos)?.let { onItemLongClickListener?.invoke(it, pos, itemView) }
                 }
                 true
@@ -117,8 +124,10 @@ class SymbolAdapter :
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SymbolViewHolder {
-        val itemView = LayoutInflater.from(parent.context)
-            .inflate(R.layout.symbol_item_view, parent, false)
+        val layout =
+            if (viewType == VIEW_TYPE_HEADER) R.layout.symbol_section_header
+            else R.layout.symbol_item_view
+        val itemView = LayoutInflater.from(parent.context).inflate(layout, parent, false)
         return SymbolViewHolder(itemView)
     }
 
@@ -127,6 +136,14 @@ class SymbolAdapter :
             getItem(position)
         } catch (e: IndexOutOfBoundsException) {
             null
+        }
+        if (symbol != null && symbol.startsWith(HEADER_PREFIX)) {
+            holder.symbolTextView.text = symbol.removePrefix(HEADER_PREFIX)
+            holder.symbolTextView.setTextColor(
+                themeTextColor?.let(ColorStateList::valueOf) ?: holder.originalTextColors
+            )
+            holder.skinToneIndicator.visibility = View.GONE
+            return
         }
         if (symbol != null) {
             holder.symbolTextView.text = symbol
@@ -199,6 +216,11 @@ class SymbolAdapter :
     }
 
     companion object {
+        /** 先頭にこの文字が付いた文字列は、絵文字ではなく見出し行として表示する。 */
+        const val HEADER_PREFIX = "\u0001"
+        private const val VIEW_TYPE_SYMBOL = 0
+        private const val VIEW_TYPE_HEADER = 1
+
         private val DIFF_CALLBACK = object : DiffUtil.ItemCallback<String>() {
             override fun areItemsTheSame(oldItem: String, newItem: String): Boolean {
                 return oldItem == newItem
