@@ -3049,6 +3049,10 @@ class QWERTYKeyboardView @JvmOverloads constructor(
         binding.keyTouten.isVisible = showKutouten
     }
 
+    fun setEmojiKeyVisibility(visible: Boolean) {
+        binding.keyEmoji.isVisible = visible
+    }
+
     fun setRomajiEnglishSwitchKeyVisibility(showRomajiEnglishKey: Boolean) {
         binding.switchRomajiEnglish.isVisible = showRomajiEnglishKey
     }

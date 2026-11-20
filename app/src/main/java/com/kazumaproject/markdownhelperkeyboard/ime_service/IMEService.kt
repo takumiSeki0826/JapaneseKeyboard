@@ -5937,7 +5937,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     showCursors = qwertyShowCursorButtonsPreference ?: false,
                     showSwitchKey = qwertyShowIMEButtonPreference ?: true,
                     showKutouten = qwertyShowKutoutenButtonsPreference ?: false,
-                    showEmojiKey = qwertyShowEmojiButtonPreference ?: false
+                    showEmojiKey = (qwertyShowEmojiButtonPreference ?: false) && isQwertyEmojiSwitchAllowed()
                 )
                 qwertyView.setRomajiEnglishSwitchKeyTextWithStyle(true)
                 qwertyView.updateSymbolKeymapState(qwertyShowKeymapSymbolsPreference ?: false)
@@ -9735,6 +9735,18 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private fun setCurrentInputModeForSession(inputMode: InputMode) {
         currentInputModeForSession = inputMode
         setInputModeOnActiveSurface(inputMode)
+        updateQwertyEmojiKeyVisibilityOnActiveSurface()
+    }
+
+    /** 英字入力中（英字モード / 英字QWERTY）は絵文字キーボードへの切り替えを許可しない。 */
+    private fun isQwertyEmojiSwitchAllowed(): Boolean =
+        currentInputModeForSession == InputMode.ModeJapanese &&
+                qwertyMode.value != TenKeyQWERTYMode.TenKeyQWERTY
+
+    private fun updateQwertyEmojiKeyVisibilityOnActiveSurface() {
+        getActiveKeyboardSurface()?.qwertyView?.setEmojiKeyVisibility(
+            (qwertyShowEmojiButtonPreference ?: false) && isQwertyEmojiSwitchAllowed()
+        )
     }
 
     private fun InputMode.toRestartPreferenceValue(): String {
@@ -9960,6 +9972,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     qwertyShowSwitchRomajiEnglishPreference == true
         )
         qwertyView.setSwitchNumberLayoutKeyVisibility(shouldShowQwertySwitchNumberLayoutKey())
+        updateQwertyEmojiKeyVisibilityOnActiveSurface()
         updateQwertyGlideInputModeOnActiveSurface()
     }
 
@@ -23344,7 +23357,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 showCursors = qwertyShowCursorButtonsPreference ?: false,
                 showSwitchKey = qwertyShowIMEButtonPreference ?: true,
                 showKutouten = qwertyShowKutoutenButtonsPreference ?: false,
-                showEmojiKey = qwertyShowEmojiButtonPreference ?: false
+                showEmojiKey = (qwertyShowEmojiButtonPreference ?: false) && isQwertyEmojiSwitchAllowed()
             )
             setRomajiEnglishSwitchKeyTextWithStyle(true)
             updateSymbolKeymapState(qwertyShowKeymapSymbolsPreference ?: false)
@@ -23485,6 +23498,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         }
 
                         QWERTYKey.QWERTYKeyEmoji -> {
+                            if (!isQwertyEmojiSwitchAllowed()) return
                             toggleEmojiKeyboard()
                         }
 
