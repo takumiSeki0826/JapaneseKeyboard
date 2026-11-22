@@ -2999,6 +2999,11 @@ class QWERTYKeyboardView @JvmOverloads constructor(
         }
     }
 
+    /** Releases Shift and Caps Lock, e.g. when the keyboard is reopened. */
+    fun releaseShiftAndCapsLock() {
+        clearShiftCaps(notifyListener = true)
+    }
+
     fun getRomajiMode(): Boolean {
         return romajiModeState.value
     }

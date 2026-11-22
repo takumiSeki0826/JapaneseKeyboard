@@ -2195,6 +2195,15 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private val isRomajiShiftPressed: Boolean
         get() = hardKeyboardShiftPressd || softwareQwertyShiftPressed
 
+    /** Caps Lock only lasts for one display of the keyboard; reopening it starts unlocked. */
+    private fun releaseCapsLockOnKeyboardReopen() {
+        mainLayoutBinding?.qwertyView?.releaseShiftAndCapsLock()
+        floatingKeyboardBinding?.qwertyViewFloating?.releaseShiftAndCapsLock()
+        softwareQwertyShiftPressed = false
+        softwareQwertyCapsLockOn = false
+        customKeyboardShiftState = CustomKeyboardShiftState.OFF
+    }
+
     private fun resetSoftwareQwertyShiftAfterCompositionBoundary() {
         softwareQwertyShiftPressed = if (isDefaultRomajiHenkanMap) {
             softwareQwertyCapsLockOn
@@ -5623,6 +5632,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         stopSplitKeyboard()
         super.onStartInputView(editorInfo, restarting)
         flickInputPreviewCoordinator.cancel(restore = true)
+        releaseCapsLockOnKeyboardReopen()
         clearZeroQueryAllState(refresh = false)
         // The input view can restart without onStartInput() after returning from settings.
         // Re-read preferences that may change while the existing input session is retained.
@@ -28970,6 +28980,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             KeyboardType.CUSTOM, KeyboardType.SPLIT -> {}
+        }
+
+        // 地球儀キーで英字へ切り替えるときは、数字・記号画面ではなく必ず英字(QWERTY)にする
+        if (nextType == KeyboardType.QWERTY && qwertyMode.value == TenKeyQWERTYMode.Number) {
+            _tenKeyQWERTYMode.update { TenKeyQWERTYMode.TenKeyQWERTY }
         }
 
         // 統一された showKeyboard 関数を呼び出す
