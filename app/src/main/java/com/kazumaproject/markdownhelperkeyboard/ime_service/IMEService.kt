@@ -10558,6 +10558,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             numberEnabled = tenkeyKeymapGuideSettings.number
         )
         floatingKeyboardLayoutBinding.keyboardViewFloating.apply {
+            // TenKey resets its keys to the plain defaults from its own collector when the input mode
+            // changes (e.g. number -> Japanese), so refresh the composing-text icons after that.
+            setOnInputModeChangedListener { inputMode ->
+                currentInputModeForSession = inputMode
+                Handler(mainLooper).post {
+                    setTenkeyIconsInHenkanFloating(inputString.value, floatingKeyboardLayoutBinding)
+                }
+            }
             setOnFlickListener(object : FlickListener {
                 override fun onFlick(gestureType: GestureType, key: Key, char: Char?) {
                     activateSplitView(floatingKeyboardLayoutBinding.keyboardViewFloating)
@@ -10760,7 +10768,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     ) {
         currentInputModeForSession = inputMode
         if (switchTenkeyEnglishToQwertyIfNeeded(inputMode, mainView)) return
-        setTenkeyIconsInHenkan(inputString.value, mainView)
+        // TenKey resets its keys to the plain defaults from its own collector right after the mode
+        // changes, so refresh the composing-text icons once that has run.
+        Handler(mainLooper).post { setTenkeyIconsInHenkan(inputString.value, mainView) }
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -10986,10 +10996,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 if (switchTenkeyEnglishToQwertyIfNeeded(inputMode, mainView)) {
                     return@setOnInputModeChangedListener
                 }
-                if (floatingView != null) {
-                    setTenkeyIconsInHenkanFloating(inputString.value, floatingView)
-                } else {
-                    setTenkeyIconsInHenkan(inputString.value, mainView)
+                // See handleTenKeyInputModeChanged: refresh after TenKey's own key reset.
+                Handler(mainLooper).post {
+                    if (floatingView != null) {
+                        setTenkeyIconsInHenkanFloating(inputString.value, floatingView)
+                    } else {
+                        setTenkeyIconsInHenkan(inputString.value, mainView)
+                    }
                 }
             }
         }
@@ -25629,16 +25642,19 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             mainView.keyboardView.apply {
                 when (currentInputMode.value) {
                     is InputMode.ModeJapanese -> {
+                        // Composing text keeps the convert key and the dakuten/small key, as in updateUIinHenkan.
                         setSideKeySpaceDrawable(
-                            cachedSpaceDrawable
+                            if (insertString.isNotEmpty()) cachedHenkanDrawable else cachedSpaceDrawable
                         )
                         setSideKeyPreviousState(true)
                         if (insertString.isNotEmpty()) {
-                            if (insertString.isNotEmpty() && insertString.last()
-                                    .isLatinAlphabet()
-                            ) {
+                            if (insertString.last().isLatinAlphabet()) {
                                 setBackgroundSmallLetterKey(
                                     cachedEnglishDrawable
+                                )
+                            } else if (insertString.last().isHiragana()) {
+                                setBackgroundSmallLetterKey(
+                                    cachedKanaDrawable
                                 )
                             } else {
                                 setBackgroundSmallLetterKey(
@@ -25724,14 +25740,19 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             Timber.d("setTenkeyIconsInHenkanFloating: ${currentInputMode.value}")
             when (currentInputMode.value) {
                 is InputMode.ModeJapanese -> {
+                    // Composing text keeps the convert key and the dakuten/small key, as in updateUIinHenkan.
                     setSideKeySpaceDrawable(
-                        cachedSpaceDrawable
+                        if (insertString.isNotEmpty()) cachedHenkanDrawable else cachedSpaceDrawable
                     )
                     setSideKeyPreviousState(true)
                     if (insertString.isNotEmpty()) {
-                        if (insertString.isNotEmpty() && insertString.last().isLatinAlphabet()) {
+                        if (insertString.last().isLatinAlphabet()) {
                             setBackgroundSmallLetterKey(
                                 cachedEnglishDrawable
+                            )
+                        } else if (insertString.last().isHiragana()) {
+                            setBackgroundSmallLetterKey(
+                                cachedKanaDrawable
                             )
                         } else {
                             setBackgroundSmallLetterKey(
