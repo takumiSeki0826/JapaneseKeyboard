@@ -31,7 +31,7 @@ class KeyboardThemePreviewView(context: Context, id: KeyboardSkinId) : View(cont
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val keyboardDrawable = skin?.keyboardDrawable(resources)
     private val keyDrawables = SkinKeyRole.entries.associateWith { skin?.keyDrawable(resources, role = it) }
-    private val labels = listOf("↶", "あ", "か", "さ", "⌫", "◀", "た", "な", "は", "▶", "記号", "ま", "や", "ら", "変換", "あa", "小", "わ", "空白", "↵")
+    private val labels = listOf("↶", "あ", "か", "さ", "⌫", "◀", "た", "な", "は", "▶", "記号", "ま", "や", "ら", "Convert", "あa", "小", "わ", "空白", "↵")
 
     private fun keyRole(index: Int): SkinKeyRole = when (index) {
         18 -> SkinKeyRole.SPACE
