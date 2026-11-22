@@ -25680,29 +25680,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                     is InputMode.ModeNumber -> {
                         setSideKeyPreviousState(true)
-                        if (insertString.isNotEmpty()) {
-                            setSideKeySpaceDrawable(
-                                cachedHenkanDrawable
-                            )
-                            if (insertString.last().isHiragana()) {
-                                setBackgroundSmallLetterKey(
-                                    cachedKanaDrawable
-                                )
-                            } else {
-                                setBackgroundSmallLetterKey(
-                                    isLanguageEnable = tenkeyShowIMEButtonPreference ?: true,
-                                    isEnglish = false
-                                )
-                            }
-                        } else {
-                            setSideKeySpaceDrawable(
-                                cachedSpaceDrawable
-                            )
-                            setBackgroundSmallLetterKey(
-                                isLanguageEnable = tenkeyShowIMEButtonPreference ?: true,
-                                isEnglish = false
-                            )
-                        }
+                        // The number keyboard shows the real keys (e.g. ()[]), never the Japanese-mode globe/space icons.
+                        setNumberSmallKeyPresentation()
+                        setSideKeySpaceDrawable(
+                            if (insertString.isNotEmpty()) cachedHenkanDrawable else cachedSpaceDrawable
+                        )
                     }
                 }
             }
@@ -25778,29 +25760,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                 is InputMode.ModeNumber -> {
                     setSideKeyPreviousState(true)
-                    if (insertString.isNotEmpty()) {
-                        setSideKeySpaceDrawable(
-                            cachedHenkanDrawable
-                        )
-                        if (insertString.last().isHiragana()) {
-                            setBackgroundSmallLetterKey(
-                                cachedKanaDrawable
-                            )
-                        } else {
-                            setBackgroundSmallLetterKey(
-                                isLanguageEnable = tenkeyShowIMEButtonPreference ?: true,
-                                isEnglish = false
-                            )
-                        }
-                    } else {
-                        setSideKeySpaceDrawable(
-                            cachedSpaceDrawable
-                        )
-                        setBackgroundSmallLetterKey(
-                            isLanguageEnable = tenkeyShowIMEButtonPreference ?: true,
-                            isEnglish = false
-                        )
-                    }
+                    // The number keyboard shows the real keys (e.g. ()[]), never the Japanese-mode globe/space icons.
+                    setNumberSmallKeyPresentation()
+                    setSideKeySpaceDrawable(
+                        if (insertString.isNotEmpty()) cachedHenkanDrawable else cachedSpaceDrawable
+                    )
                 }
             }
         }
