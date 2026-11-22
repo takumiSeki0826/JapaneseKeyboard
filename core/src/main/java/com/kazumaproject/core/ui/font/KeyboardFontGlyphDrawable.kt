@@ -58,7 +58,7 @@ class KeyboardFontGlyphDrawable private constructor(
 
     override fun draw(canvas: Canvas) {
         // Icons whose vector artwork is Japanese text are drawn as text even without a custom font.
-        val typeface = snapshot.typeface ?: if (spec.drawAsText) Typeface.DEFAULT else null
+        val typeface = snapshot.typeface ?: if (spec.drawAsText) Typeface.SANS_SERIF else null
         if (typeface == null) {
             drawDelegate(canvas)
             return
@@ -66,8 +66,13 @@ class KeyboardFontGlyphDrawable private constructor(
 
         val save = canvas.save()
         canvas.translate(bounds.left.toFloat(), bounds.top.toFloat())
-        canvas.scale(bounds.width() / spec.viewportWidth, bounds.height() / spec.viewportHeight)
-        canvas.clipRect(0f, 0f, spec.viewportWidth, spec.viewportHeight)
+        // Latin text must not be stretched to the icon's aspect ratio, so it is laid out in pixels.
+        val viewportWidth = if (spec.drawAsText) bounds.width().toFloat() else spec.viewportWidth
+        val viewportHeight = if (spec.drawAsText) bounds.height().toFloat() else spec.viewportHeight
+        if (!spec.drawAsText) {
+            canvas.scale(bounds.width() / spec.viewportWidth, bounds.height() / spec.viewportHeight)
+        }
+        canvas.clipRect(0f, 0f, viewportWidth, viewportHeight)
 
         val baseColor = resolvedTintColor ?: spec.defaultColor(context)
         val color = Color.argb(
@@ -78,10 +83,10 @@ class KeyboardFontGlyphDrawable private constructor(
         )
         spec.glyphs.forEach { glyph ->
             val viewportBounds = RectF(glyph.bounds).apply {
-                left *= spec.viewportWidth
-                right *= spec.viewportWidth
-                top *= spec.viewportHeight
-                bottom *= spec.viewportHeight
+                left *= viewportWidth
+                right *= viewportWidth
+                top *= viewportHeight
+                bottom *= viewportHeight
             }
             drawGlyph(
                 canvas, textPaint, glyph.text, viewportBounds, color, typeface, glyph.style,
@@ -272,7 +277,7 @@ class KeyboardFontGlyphDrawable private constructor(
         )
 
         internal val specs: Map<Int, IconSpec> = buildMap {
-            put(R.drawable.henkan, IconSpec(96f, 46f, listOf(glyph("C", 0.01f, 0.02f, 0.99f, 0.96f)), drawAsText = true))
+            put(R.drawable.henkan, IconSpec(96f, 46f, listOf(glyph("C", 0.10f, 0.10f, 0.90f, 0.90f)), drawAsText = true))
             put(R.drawable.katakana, IconSpec(100f, 100f, listOf(glyph("カタ", 0.16f, 0.28f, 0.84f, 0.72f))))
 
             val modeBox = box(0.14f, 0.27f, 0.86f, 0.73f)
