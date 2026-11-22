@@ -43,12 +43,12 @@ class KeyboardFontGlyphDrawableTest {
         R.drawable.language_japanese_kana_right_24px to listOf("a"),
         R.drawable.language_japanese_kana_right_bold_24px to listOf("あ", "a"),
         R.drawable.english_small to listOf("a/A"),
-        R.drawable.kana_small to listOf("゛", "゜", "小", "大"),
-        R.drawable.kana_small_custom to listOf("゛", "゜", "小", "大"),
+        R.drawable.kana_small to listOf("小゛゜"),
+        R.drawable.kana_small_custom to listOf("小゛゜"),
         R.drawable.number_small to listOf("()", "[]"),
         R.drawable.number_small_flick_guide to listOf("(", ")", "[", "]"),
         R.drawable.custom_key_english_case_24 to listOf("a/A"),
-        R.drawable.custom_key_kana_case_24 to listOf("゛", "゜", "小", "大"),
+        R.drawable.custom_key_kana_case_24 to listOf("小゛゜"),
         R.drawable.symbol to listOf("§"),
         R.drawable.open_bracket to listOf("("),
         R.drawable.qwerty_number to listOf("123"),
@@ -78,8 +78,8 @@ class KeyboardFontGlyphDrawableTest {
             )
             val standardBitmap = render(standard, original.intrinsicWidth, original.intrinsicHeight)
             val originalBitmap = render(original, original.intrinsicWidth, original.intrinsicHeight)
-            if (resourceId == R.drawable.henkan) {
-                // The convert key intentionally shows "C" text instead of the 変換 vector.
+            if (KeyboardFontGlyphDrawable.specs.getValue(resourceId).drawAsText) {
+                // Icons drawn as text intentionally differ from their old vector artwork (C key, 小゛゜ key).
                 assertTrue("convert artwork should differ", !standardBitmap.sameAs(originalBitmap))
             } else {
                 assertTrue("standard artwork changed for $resourceId", standardBitmap.sameAs(originalBitmap))
@@ -125,36 +125,6 @@ class KeyboardFontGlyphDrawableTest {
             androidx.core.content.ContextCompat.getColor(context, R.color.keyboard_icon_color),
             spec.defaultColor(context),
         )
-    }
-
-    @Test
-    fun customKanaSmallArrowStaysBetweenTheSmallAndLargeLabels() {
-        val spec = checkNotNull(KeyboardFontGlyphDrawable.specs[R.drawable.kana_small_custom])
-        assertEquals(100f, spec.viewportWidth, 0f)
-        assertEquals(100f, spec.viewportHeight, 0f)
-
-        val decoration = spec.decorations.single()
-        val path = checkNotNull(PathParser.createPathFromPathData(decoration.pathData))
-        if (decoration.scaleX != 1f || decoration.scaleY != 1f ||
-            decoration.translateX != 0f || decoration.translateY != 0f ||
-            decoration.pivotX != 0f || decoration.pivotY != 0f
-        ) {
-            val tx = decoration.translateX + decoration.pivotX - decoration.scaleX * decoration.pivotX
-            val ty = decoration.translateY + decoration.pivotY - decoration.scaleY * decoration.pivotY
-            val matrix = Matrix().apply {
-                setValues(
-                    floatArrayOf(
-                        decoration.scaleX, 0f, tx,
-                        0f, decoration.scaleY, ty,
-                        0f, 0f, 1f,
-                    )
-                )
-            }
-            path.transform(matrix)
-        }
-        val bounds = RectF().also { path.computeBounds(it, true) }
-
-        assertTrue("custom kana arrow left its original central label area: $bounds", RectF(34f, 51f, 68f, 68f).contains(bounds))
     }
 
     @Test
