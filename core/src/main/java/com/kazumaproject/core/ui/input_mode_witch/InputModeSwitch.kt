@@ -10,6 +10,7 @@ import android.util.AttributeSet
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.appcompat.widget.AppCompatImageButton
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import com.kazumaproject.core.R
 import com.kazumaproject.core.domain.state.InputMode
 import com.kazumaproject.core.domain.state.TwoStateNumberReturnTarget
@@ -67,7 +68,14 @@ class InputModeSwitch(context: Context, attrs: AttributeSet) :
         val fallbackColor = ContextCompat.getColor(context, R.color.keyboard_icon_color)
         val tint = imageTintList?.getColorForState(drawableState, fallbackColor)
         val selectedColor = tint ?: ContextCompat.getColor(context, R.color.keyboard_icon_color)
-        val idleColor = tint ?: 0xff839096.toInt()
+        // 無効な側は、有効側と同じ色を薄めて使う（キー色・テーマ色に馴染ませる）。濃さは input_mode_switch_idle_alpha で調整する。
+        val idleAlpha = ResourcesCompat.getFloat(resources, R.dimen.input_mode_switch_idle_alpha)
+        val idleColor = Color.argb(
+            (Color.alpha(selectedColor) * idleAlpha).toInt(),
+            Color.red(selectedColor),
+            Color.green(selectedColor),
+            Color.blue(selectedColor),
+        )
         // フリック系キーボードの入力モードは「あ」「1」の2状態。旧状態の英字は「あ」として扱う。
         val selectedIndex = if (currentInputMode == InputMode.ModeNumber) 1 else 0
         val labels = listOf("あ", "1")
