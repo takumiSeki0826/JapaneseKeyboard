@@ -54,7 +54,6 @@
     <string name="action_toggle_dakuten_only">Dakuten / Clear</string>
     <string name="action_toggle_handakuten_only">Handakuten / Clear</string>
     <string name="action_force_half_width_space">Half-width space</string>
-    <string name="action_force_full_width_space">Full-width space</string>
     <string name="custom_key_icon_title">Special key icon</string>
     <string name="custom_key_icon_preview">Icon preview</string>
     <string name="custom_key_icon_action_default">Action default icon</string>
@@ -253,10 +252,6 @@
     <string name="reconversion_preference_title">Restore Reading</string>
     <string name="reconversion_preference_summary">Adds a \"Restore Reading\" button that restores the last committed reading to pre-edit.</string>
     <string name="reconversion_symbol">Restore Reading</string>
-    <string name="space_key_title">Use half-width space</string>
-    <string name="space_key_summary">Always use half-width space regardless of the input mode</string>
-    <string name="custom_direct_mode_space_hankaku_title">Use half-width space in Direct Mode</string>
-    <string name="custom_direct_mode_space_hankaku_summary">When Direct Mode is enabled and there is no PreEdit text, the space key enters a half-width space.</string>
     <string name="live_conversion_title">Live Conversion β</string>
     <string name="live_conversion_summary_on">Live conversion is enabled</string>
     <string name="live_conversion_summary_off">Live conversion is disabled</string>
@@ -634,10 +629,6 @@
     <string name="undo_enable_summary_on">Enables the ability to undo when you delete committed text</string>
     <string name="undo_enable_summary_off">Disables the ability to undo when you delete committed text</string>
 
-    <string name="space_key_title_hankaku">Half-width space input</string>
-    <string name="space_key_title_zenkaku">Full-width space input</string>
-    <string name="space_key_summary_hankaku">Currently in half-width input mode.\nFlick left for a full-width space</string>
-    <string name="space_key_summary_zenkaku">Currently in full-width input mode.\nFlick left for a half-width space</string>
 
     <string name="ng_word_enable_title_on">Enable NG Words</string>
     <string name="ng_word_enable_title_off">Disable NG Words</string>
@@ -1020,8 +1011,6 @@
     <string name="shortcut_toolbar_icon_size_title">Icon size</string>
     <string name="shortcut_toolbar_size_reset">Reset to default</string>
     <string name="shortcut_toolbar_size_integrated_note">This setting applies to the independent shortcut toolbar. Shortcuts integrated into the suggestion area are not changed.</string>
-    <string name="qwerty_romaji_zenkaku_space_preference_title">Full-width space on QWERTY keyboard</string>
-    <string name="qwerty_romaji_zenkaku_space_preference_summary">When enabled, the space key on the romaji (QWERTY) keyboard inserts a full-width space.</string>
     <string name="qwerty_romaji_hankaku_number_preference_title">Half-width numbers in Romaji input</string>
     <string name="qwerty_romaji_hankaku_number_preference_summary">When enabled, numbers typed on the Romaji QWERTY keyboard are inserted as half-width characters.</string>
     <string name="qwerty_romaji_hankaku_symbol_preference_title">Half-width symbols in Romaji input</string>
@@ -1828,10 +1817,6 @@
     <string name="qwerty_common_category_title">QWERTY (Common)</string>
     <string name="qwerty_english_category_title">QWERTY (English)</string>
     <string name="qwerty_romaji_category_title">QWERTY (Romaji)</string>
-    <string name="space_flick_preference_title">Space key flick</string>
-    <string name="tenkey_space_flick_summary">Flick left to insert the opposite space width to your current space setting.</string>
-    <string name="qwerty_romaji_space_flick_summary">Flick up to insert the opposite space width to your Romaji space setting. Independent of letter-key up flicks.</string>
-    <string name="qwerty_english_space_flick_summary">Flick up to insert a full-width space. If there is composing text, commit it with a full-width space. Tapping still inserts a half-width space. Independent of letter-key up flicks.</string>
     <string name="floating_keyboard_hide">Hide keyboard</string>
     <string name="local_font_title">Local font</string>
     <string name="local_font_settings_summary">Choose a font for keyboard labels and IME text</string>

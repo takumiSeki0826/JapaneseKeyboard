@@ -62,11 +62,6 @@ object KeyActionMapper {
                 com.kazumaproject.core.R.drawable.baseline_space_bar_24
             ),
             DisplayAction(
-                KeyAction.ForceFullWidthSpace,
-                context.getString(R.string.action_force_full_width_space),
-                com.kazumaproject.core.R.drawable.baseline_space_bar_24
-            ),
-            DisplayAction(
                 KeyAction.Convert,
                 context.getString(R.string.action_convert),
                 com.kazumaproject.core.R.drawable.henkan

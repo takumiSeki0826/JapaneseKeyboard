@@ -54,7 +54,6 @@
     <string name="action_toggle_dakuten_only">濁点 / 清音</string>
     <string name="action_toggle_handakuten_only">半濁点 / 清音</string>
     <string name="action_force_half_width_space">半角スペース</string>
-    <string name="action_force_full_width_space">全角スペース</string>
     <string name="custom_key_icon_title">特殊キーのアイコン</string>
     <string name="custom_key_icon_preview">アイコンのプレビュー</string>
     <string name="custom_key_icon_action_default">アクション既定アイコン</string>
@@ -255,10 +254,6 @@
     <string name="reconversion_preference_title">読みを戻す</string>
     <string name="reconversion_preference_summary">候補が空のときに「読みを戻す」ボタンを表示し、直前に確定した読みを PreEdit に戻せます。</string>
     <string name="reconversion_symbol">読みを戻す</string>
-    <string name="space_key_title">半角スペースの利用</string>
-    <string name="space_key_summary">入力モードに関わらず、常に半角スペースを使用します。</string>
-    <string name="custom_direct_mode_space_hankaku_title">直接入力時に半角スペースを使用</string>
-    <string name="custom_direct_mode_space_hankaku_summary">直接入力モードでPreEditに文字がない場合、スペースキーで半角スペースを入力します。</string>
     <string name="live_conversion_title">ライブ変換 β</string>
     <string name="live_conversion_summary_on">ライブ変換は有効です</string>
     <string name="live_conversion_summary_off">ライブ変換は無効です</string>
@@ -592,10 +587,6 @@
     <string name="undo_enable_summary_on">確定した文字を削除したときに、元に戻せる機能を有効にします</string>
     <string name="undo_enable_summary_off">確定した文字を削除したときに、元に戻せる機能を無効にします</string>
 
-    <string name="space_key_title_hankaku">空白を半角入力</string>
-    <string name="space_key_title_zenkaku">空白を全角入力</string>
-    <string name="space_key_summary_hankaku">現在、半角入力です。\n左フリックで全角の空白</string>
-    <string name="space_key_summary_zenkaku">現在、全角入力です。\n左フリックで半角の空白</string>
 
     <string name="ng_word_enable_title_on">NG ワードを有効にする</string>
     <string name="ng_word_enable_title_off">NG ワードを無効にする</string>
@@ -974,8 +965,6 @@
     <string name="shortcut_toolbar_icon_size_title">アイコンサイズ</string>
     <string name="shortcut_toolbar_size_reset">デフォルトに戻す</string>
     <string name="shortcut_toolbar_size_integrated_note">この設定は独立表示のショートカットツールバーに適用されます。候補欄に統合されたショートカットの見た目は変更されません。</string>
-    <string name="qwerty_romaji_zenkaku_space_preference_title">ローマ字キーボードの全角スペース</string>
-    <string name="qwerty_romaji_zenkaku_space_preference_summary">オンにすると、ローマ字キーボードの空白キーで全角スペースを入力します。</string>
     <string name="qwerty_romaji_hankaku_number_preference_title">ローマ字入力時の半角数字</string>
     <string name="qwerty_romaji_hankaku_number_preference_summary">オンにすると、ローマ字 QWERTY キーボードで数字を半角で入力します。</string>
     <string name="qwerty_romaji_hankaku_symbol_preference_title">ローマ字入力時の半角記号</string>
@@ -1826,10 +1815,6 @@
     <string name="qwerty_common_category_title">QWERTY（共通）</string>
     <string name="qwerty_english_category_title">QWERTY（英語）</string>
     <string name="qwerty_romaji_category_title">QWERTY（ローマ字）</string>
-    <string name="space_flick_preference_title">スペースキーのフリック</string>
-    <string name="tenkey_space_flick_summary">左フリックで、既存のスペース設定と反対の幅（半角・全角）の空白を入力します。</string>
-    <string name="qwerty_romaji_space_flick_summary">上フリックで、既存のローマ字のスペース設定と反対の幅（半角・全角）の空白を入力します。文字キーの上フリック設定とは独立しています。</string>
-    <string name="qwerty_english_space_flick_summary">上フリックで全角スペースを入力します。未確定文字がある場合は確定して全角スペースを挿入します。タップは半角スペースのままです。文字キーの上フリック設定とは独立しています。</string>
     <string name="floating_keyboard_hide">キーボードを非表示</string>
     <string name="local_font_title">ローカルフォント</string>
     <string name="local_font_settings_summary">キーボードのラベルとIME内の文字に使うフォントを選択します</string>

@@ -5952,8 +5952,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 qwertyView.updateSymbolKeymapState(qwertyShowKeymapSymbolsPreference ?: false)
                 qwertyView.updateNumberKeyState(qwertyShowNumberButtonsPreference ?: false)
                 qwertyView.setPopUpViewState(qwertyShowPopupWindowPreference ?: true)
-                qwertyView.setSpaceUpFlickEnabled(qwertyRomajiSpaceFlickPreference)
-                qwertyView.setEnglishSpaceUpFlickEnabled(qwertyEnglishSpaceFlickPreference)
+                qwertyView.setSpaceUpFlickEnabled(false)
+                qwertyView.setEnglishSpaceUpFlickEnabled(false)
                 qwertyView.setFlickUpDetectionEnabled(qwertyEnableFlickUpPreference ?: false)
                 qwertyView.setFlickDownDetectionEnabled(qwertyEnableFlickDownPreference ?: false)
                 qwertyView.setNumberKeyFlickUpChars(qwertyNumberKeyFlickUpChars)
@@ -23371,8 +23371,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             updateSymbolKeymapState(qwertyShowKeymapSymbolsPreference ?: false)
             updateNumberKeyState(qwertyShowNumberButtonsPreference ?: false)
             setPopUpViewState(qwertyShowPopupWindowPreference ?: true)
-            setSpaceUpFlickEnabled(qwertyRomajiSpaceFlickPreference)
-            setEnglishSpaceUpFlickEnabled(qwertyEnglishSpaceFlickPreference)
+            setSpaceUpFlickEnabled(false)
+            setEnglishSpaceUpFlickEnabled(false)
             setFlickUpDetectionEnabled(qwertyEnableFlickUpPreference ?: false)
             setFlickDownDetectionEnabled(qwertyEnableFlickDownPreference ?: false)
             setNumberKeyFlickUpChars(qwertyNumberKeyFlickUpChars)
@@ -27482,10 +27482,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         reverseSpaceWidth: Boolean = false
     ) {
         val reverseRomajiSpace = reverseSpaceWidth && currentQwertyRomajiModeForSession
-        val englishSpace = if (reverseSpaceWidth && !currentQwertyRomajiModeForSession) "　" else " "
+        val englishSpace = " "
         clearZeroQueryAllState(refresh = false)
         val directSpace = if (reverseRomajiSpace) {
-            oppositeSpace(qwertyEnableZenkakuSpacePreference == true)
+            " "
         } else {
             englishSpace
         }
@@ -27585,9 +27585,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             val romajiMode = currentQwertyRomajiModeForSession
             Timber.d("handleSpaceKeyClickInQWERTY: $romajiMode")
             if (reverseRomajiSpace) {
-                commitText(oppositeSpace(qwertyEnableZenkakuSpacePreference == true), 1)
-            } else if (romajiMode && qwertyEnableZenkakuSpacePreference == true) {
-                handleSpaceKeyClick(false, insertString, suggestions, mainView)
+                commitText(" ", 1)
             } else {
                 setSpaceKeyActionEnglishAndNumberNotEmpty(insertString, englishSpace)
             }
@@ -27611,7 +27609,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         floatingKeyboardLayoutBinding: FloatingKeyboardLayoutBinding? = null
     ) {
         handleForceSpaceOrConvert(
-            space = "　",
+            space = " ",
             mainView = mainView,
             floatingKeyboardLayoutBinding = floatingKeyboardLayoutBinding
         )
@@ -29340,13 +29338,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             stringInTail.set("")
         } else {
             mainLayoutBinding?.let { mainView ->
-                commitText(
-                    resolveEmptySpaceForCurrentMode(
-                        isFlick = isFlick,
-                        currentInputMode = currentTenkeyInputMode(mainView)
-                    ),
-                    1
-                )
+                commitText(" ", 1)
             }
         }
         _inputString.update { "" }
@@ -29357,18 +29349,6 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             suggestionClickNum = 0
             suggestionAdapter?.updateHighlightPosition(-1)
         }
-    }
-
-    private fun resolveEmptySpaceForCurrentMode(
-        isFlick: Boolean,
-        currentInputMode: InputMode
-    ): String {
-        return resolveEmptySpaceForCurrentMode(
-            isCustomLayoutDirectMode = isCustomLayoutDirectMode,
-            customDirectModeSpaceHankakuPreference = customDirectModeSpaceHankakuPreference,
-            isFlick = isFlick,
-            currentInputMode = currentInputMode
-        )
     }
 
     private var isFirstClickHasStringTail = false

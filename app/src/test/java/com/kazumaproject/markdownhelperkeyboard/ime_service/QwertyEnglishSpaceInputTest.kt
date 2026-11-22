@@ -69,7 +69,7 @@ class QwertyEnglishSpaceInputTest {
             ClassParameter.from(MainLayoutBinding::class.java, mock(MainLayoutBinding::class.java)),
             ClassParameter.from(List::class.java, candidates),
             ClassParameter.from(Boolean::class.javaPrimitiveType, flick))
-        val space = if (flick) "\u3000" else " "
+        val space = " " // full-width spaces are no longer produced
         assertEquals(left + space + tail, editor.editable.toString())
         assertEquals(left.length + 1, Selection.getSelectionStart(editor.editable))
         assertEquals(-1, BaseInputConnection.getComposingSpanStart(editor.editable))
