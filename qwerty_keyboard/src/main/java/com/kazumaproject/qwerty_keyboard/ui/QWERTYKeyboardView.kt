@@ -3043,13 +3043,13 @@ class QWERTYKeyboardView @JvmOverloads constructor(
     fun setSpecialKeyVisibility(
         showCursors: Boolean,
         showSwitchKey: Boolean,
-        showKutouten: Boolean,
-        showEmojiKey: Boolean = false
+        showKutouten: Boolean
     ) {
         binding.cursorLeft.isVisible = showCursors
         binding.cursorRight.isVisible = showCursors
         binding.keySwitchDefault.isVisible = showSwitchKey
-        binding.keyEmoji.isVisible = showEmojiKey
+        // The QWERTY keyboard has no emoji key; the spare width goes to the space key.
+        binding.keyEmoji.isVisible = false
         binding.keyKuten.isVisible = showKutouten
         binding.keyTouten.isVisible = showKutouten
     }

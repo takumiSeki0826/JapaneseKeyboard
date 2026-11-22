@@ -5946,8 +5946,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 qwertyView.setSpecialKeyVisibility(
                     showCursors = qwertyShowCursorButtonsPreference ?: false,
                     showSwitchKey = qwertyShowIMEButtonPreference ?: true,
-                    showKutouten = qwertyShowKutoutenButtonsPreference ?: false,
-                    showEmojiKey = qwertyShowEmojiButtonPreference ?: false
+                    showKutouten = qwertyShowKutoutenButtonsPreference ?: false
                 )
                 qwertyView.setRomajiEnglishSwitchKeyTextWithStyle(true)
                 qwertyView.updateSymbolKeymapState(qwertyShowKeymapSymbolsPreference ?: false)
@@ -23366,8 +23365,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             setSpecialKeyVisibility(
                 showCursors = qwertyShowCursorButtonsPreference ?: false,
                 showSwitchKey = qwertyShowIMEButtonPreference ?: true,
-                showKutouten = qwertyShowKutoutenButtonsPreference ?: false,
-                showEmojiKey = qwertyShowEmojiButtonPreference ?: false
+                showKutouten = qwertyShowKutoutenButtonsPreference ?: false
             )
             setRomajiEnglishSwitchKeyTextWithStyle(true)
             updateSymbolKeymapState(qwertyShowKeymapSymbolsPreference ?: false)
