@@ -28822,6 +28822,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                         else -> {}
                     }
+                } else {
+                    switchKeyboardFromGlobeKey(insertString, false)
                 }
             }
         } else {
@@ -28886,6 +28888,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                         else -> {}
                     }
+                } else {
+                    switchKeyboardFromGlobeKey(insertString, true)
                 }
             }
         } else {
@@ -28896,6 +28900,29 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 switchNextKeyboard()
             }
         }
+    }
+
+    /**
+     * 地球儀キー（濁点・小文字キーと兼用）の処理。未確定文字があれば確定してから次のキーボードへ切り替える。
+     */
+    private fun switchKeyboardFromGlobeKey(insertString: String, floating: Boolean) {
+        if (onKeyboardSwitchLongPressUp ||
+            qwertyMode.value == TenKeyQWERTYMode.Custom ||
+            tenkeyShowIMEButtonPreference != true
+        ) return
+        if (insertString.isNotEmpty()) {
+            val suggestions = suggestionAdapter?.suggestions ?: emptyList()
+            if (floating) {
+                floatingKeyboardBinding?.let {
+                    handleNonEmptyInputEnterKeyFloating(suggestions, it, insertString)
+                }
+            } else {
+                mainLayoutBinding?.let {
+                    handleNonEmptyInputEnterKey(suggestions, it, insertString)
+                }
+            }
+        }
+        switchNextKeyboard()
     }
 
     // 2) 次のモードに切り替える関数
@@ -28983,10 +29010,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (insertString.isNotEmpty()) {
             val insertPosition = insertString.last()
             insertPosition.let { c ->
-                if (!c.isHiragana()) {
+                if (c.isLatinAlphabet()) {
                     c.getDakutenSmallChar()?.let { dakutenChar ->
                         setStringBuilderForConvertStringInHiragana(dakutenChar, sb, insertString)
                     }
+                } else {
+                    switchKeyboardFromGlobeKey(insertString, false)
                 }
             }
         } else {
@@ -29005,12 +29034,16 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (insertString.isNotEmpty()) {
             val insertPosition = insertString.last()
             insertPosition.let { c ->
-                if (!c.isHiragana()) {
+                if (c.isLatinAlphabet()) {
                     c.getDakutenSmallChar()?.let { dakutenChar ->
                         setStringBuilderForConvertStringInHiragana(dakutenChar, sb, insertString)
                     }
+                } else {
+                    switchKeyboardFromGlobeKey(insertString, true)
                 }
             }
+        } else {
+            switchKeyboardFromGlobeKey(insertString, true)
         }
     }
 
