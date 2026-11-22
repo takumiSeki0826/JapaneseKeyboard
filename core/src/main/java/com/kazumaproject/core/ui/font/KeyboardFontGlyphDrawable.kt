@@ -57,7 +57,8 @@ class KeyboardFontGlyphDrawable private constructor(
     }
 
     override fun draw(canvas: Canvas) {
-        val typeface = snapshot.typeface
+        // Icons whose vector artwork is Japanese text are drawn as text even without a custom font.
+        val typeface = snapshot.typeface ?: if (spec.drawAsText) Typeface.DEFAULT else null
         if (typeface == null) {
             drawDelegate(canvas)
             return
@@ -241,6 +242,7 @@ class KeyboardFontGlyphDrawable private constructor(
             val glyphs: List<Glyph>,
             val decorations: List<Decoration> = emptyList(),
             val ink: Ink = Ink.KEYBOARD,
+            val drawAsText: Boolean = false,
         ) {
             fun defaultColor(context: Context): Int = when (ink) {
                 Ink.KEYBOARD -> androidx.core.content.ContextCompat.getColor(
@@ -270,7 +272,7 @@ class KeyboardFontGlyphDrawable private constructor(
         )
 
         internal val specs: Map<Int, IconSpec> = buildMap {
-            put(R.drawable.henkan, IconSpec(96f, 46f, listOf(glyph("Convert", 0.01f, 0.02f, 0.99f, 0.96f))))
+            put(R.drawable.henkan, IconSpec(96f, 46f, listOf(glyph("Convert", 0.01f, 0.02f, 0.99f, 0.96f)), drawAsText = true))
             put(R.drawable.katakana, IconSpec(100f, 100f, listOf(glyph("カタ", 0.16f, 0.28f, 0.84f, 0.72f))))
 
             val modeBox = box(0.14f, 0.27f, 0.86f, 0.73f)

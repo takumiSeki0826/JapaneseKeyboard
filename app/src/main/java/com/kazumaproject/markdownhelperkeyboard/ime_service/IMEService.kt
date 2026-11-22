@@ -28989,6 +28989,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
         // 統一された showKeyboard 関数を呼び出す
         showKeyboard(nextType, source = "switchNextKeyboard.display")
+        if (nextType == KeyboardType.QWERTY) {
+            // フローティング側の QWERTY は showKeyboard で初期化されないため、ここで必ず英字配列に戻す
+            updateQwertyOnActiveSurface { resetQWERTYKeyboard(editorEnterLabel(japanese = false)) }
+        }
 
         currentKeyboardOrder = nextResolution.resolvedIndex ?: 0
         if (enableShowLastShownKeyboardInRestart == true) {

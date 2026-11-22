@@ -78,7 +78,12 @@ class KeyboardFontGlyphDrawableTest {
             )
             val standardBitmap = render(standard, original.intrinsicWidth, original.intrinsicHeight)
             val originalBitmap = render(original, original.intrinsicWidth, original.intrinsicHeight)
-            assertTrue("standard artwork changed for $resourceId", standardBitmap.sameAs(originalBitmap))
+            if (resourceId == R.drawable.henkan) {
+                // The convert key intentionally shows "Convert" text instead of the 変換 vector.
+                assertTrue("convert artwork should differ", !standardBitmap.sameAs(originalBitmap))
+            } else {
+                assertTrue("standard artwork changed for $resourceId", standardBitmap.sameAs(originalBitmap))
+            }
 
             wrapped.setTint(Color.BLACK)
             val scale = 256f / maxOf(spec.viewportWidth, spec.viewportHeight)
