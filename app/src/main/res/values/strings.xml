@@ -110,7 +110,7 @@
     <string name="physical_keyboard_shortcut_action_switch_to_japanese">Switch to Japanese</string>
     <string name="physical_keyboard_shortcut_action_switch_to_english">Switch to English</string>
     <string name="physical_keyboard_shortcut_action_cycle_input_mode">Cycle input mode</string>
-    <string name="physical_keyboard_shortcut_action_convert">Convert</string>
+    <string name="physical_keyboard_shortcut_action_convert">C</string>
     <string name="physical_keyboard_shortcut_action_commit">Commit</string>
     <string name="physical_keyboard_shortcut_action_cancel">Cancel</string>
     <string name="physical_keyboard_shortcut_action_convert_to_hiragana">Convert to hiragana</string>

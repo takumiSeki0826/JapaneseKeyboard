@@ -21570,7 +21570,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private fun getCandidateTabDisplayName(candidateTab: CandidateTab): String {
         return when (candidateTab) {
             CandidateTab.PREDICTION -> "予測"
-            CandidateTab.CONVERSION -> "Convert"
+            CandidateTab.CONVERSION -> "C"
             CandidateTab.EISUKANA -> "英数カナ"
         }
     }

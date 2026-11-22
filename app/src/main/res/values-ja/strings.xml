@@ -110,7 +110,7 @@
     <string name="physical_keyboard_shortcut_action_switch_to_japanese">日本語に切り替え</string>
     <string name="physical_keyboard_shortcut_action_switch_to_english">英語に切り替え</string>
     <string name="physical_keyboard_shortcut_action_cycle_input_mode">入力モードを切り替え</string>
-    <string name="physical_keyboard_shortcut_action_convert">Convert</string>
+    <string name="physical_keyboard_shortcut_action_convert">C</string>
     <string name="physical_keyboard_shortcut_action_commit">確定</string>
     <string name="physical_keyboard_shortcut_action_cancel">キャンセル</string>
     <string name="physical_keyboard_shortcut_action_convert_to_hiragana">ひらがなに変換</string>
@@ -134,7 +134,7 @@
     <string name="physical_keyboard_shortcut_key_right">右</string>
     <string name="physical_keyboard_shortcut_key_up">上</string>
     <string name="physical_keyboard_shortcut_key_down">下</string>
-    <string name="physical_keyboard_shortcut_key_henkan">Convert</string>
+    <string name="physical_keyboard_shortcut_key_henkan">C</string>
     <string name="physical_keyboard_shortcut_key_muhenkan">無変換</string>
     <string name="physical_keyboard_shortcut_key_zenkaku_hankaku">全角/半角</string>
     <string name="physical_keyboard_shortcut_key_eisu">英数</string>

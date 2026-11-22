@@ -79,7 +79,7 @@ class KeyboardFontGlyphDrawableTest {
             val standardBitmap = render(standard, original.intrinsicWidth, original.intrinsicHeight)
             val originalBitmap = render(original, original.intrinsicWidth, original.intrinsicHeight)
             if (resourceId == R.drawable.henkan) {
-                // The convert key intentionally shows "Convert" text instead of the 変換 vector.
+                // The convert key intentionally shows "C" text instead of the 変換 vector.
                 assertTrue("convert artwork should differ", !standardBitmap.sameAs(originalBitmap))
             } else {
                 assertTrue("standard artwork changed for $resourceId", standardBitmap.sameAs(originalBitmap))

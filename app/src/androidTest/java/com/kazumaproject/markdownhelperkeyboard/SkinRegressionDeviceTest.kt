@@ -344,7 +344,7 @@ class SkinRegressionDeviceTest {
                             check(text(scenario).isNotEmpty()) { "Tap did not enter text" }
                             capture("$name-composing",rootId)
                             if (args.getString("exerciseTabs") == "true" && keyboard == "TENKEY") {
-                                if(tabs) for ((tabIndex,labelText) in listOf("Convert","英数カナ","予測").withIndex()) {
+                                if(tabs) for ((tabIndex,labelText) in listOf("C","英数カナ","予測").withIndex()) {
                                     val area=bounds(awaitNode("candidate_tab_layout"))
                                     val tab=nodes().first { it.isVisibleToUser && it.text?.toString()==labelText && area.contains(bounds(it)) }
                                     gesture(bounds(tab)); awaitNode("suggestion_item_text_view")
