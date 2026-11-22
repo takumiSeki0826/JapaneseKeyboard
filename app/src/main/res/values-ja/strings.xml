@@ -1598,6 +1598,7 @@
     <string name="shortcut_toolbar_summary_emoji">絵文字一覧を表示します</string>
     <string name="shortcut_toolbar_summary_template">定型文を挿入します</string>
     <string name="shortcut_toolbar_summary_keyboard_picker">キーボードを切り替えます</string>
+    <string name="shortcut_toolbar_summary_globe">地球儀キーと同じ動作です。入力中の文字を確定して、英字（QWERTY）キーボードに切り替えます</string>
     <string name="shortcut_toolbar_summary_keyboard_layout_edit">キーボードレイアウトを編集します</string>
     <string name="shortcut_toolbar_summary_keyboard_floating_toggle">フローティングモードを切り替えます</string>
     <string name="shortcut_toolbar_summary_input_behavior_toggle">直接入力と未確定入力を一時的に切り替えます</string>

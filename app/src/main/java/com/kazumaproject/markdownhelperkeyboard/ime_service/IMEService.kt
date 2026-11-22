@@ -22804,6 +22804,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 showKeyboardPicker()
             }
 
+            ShortcutType.GLOBE -> {
+                vibrate()
+                commitCompositionAndSwitchKeyboard(
+                    inputString.value, floating = isKeyboardFloatingMode == true
+                )
+            }
+
             ShortcutType.KEYBOARD_LAYOUT_EDIT -> {
                 toggleKeyboardLayoutEditMode(mainView)
             }
@@ -28901,6 +28908,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             qwertyMode.value == TenKeyQWERTYMode.Custom ||
             tenkeyShowIMEButtonPreference != true
         ) return
+        commitCompositionAndSwitchKeyboard(insertString, floating)
+    }
+
+    /** Commits any composing text as the Enter key would, then switches keyboards like the globe key. */
+    private fun commitCompositionAndSwitchKeyboard(insertString: String, floating: Boolean) {
         if (insertString.isNotEmpty()) {
             val suggestions = suggestionAdapter?.suggestions ?: emptyList()
             if (floating) {
