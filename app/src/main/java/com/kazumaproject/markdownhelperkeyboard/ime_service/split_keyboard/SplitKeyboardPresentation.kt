@@ -82,7 +82,7 @@ internal fun renderSplitKeyboardPresentation(
             setSideKeyPreviousState(p.japanese || p.smallKey == SplitKeyboardPresentation.SmallKey.NUMBER)
         }
         TenKeyQWERTYMode.TenKeyQWERTY, TenKeyQWERTYMode.TenKeyQWERTYRomaji -> binding.qwertyViewFloating.apply {
-            setSpaceKeyText(if (p.japanese) { if (p.composing) "変換" else "空白" } else "space")
+            setSpaceKeyText(if (p.japanese) { if (p.composing) "C" else "空白" } else "space")
             setReturnKeyText(if (p.composing) { if (p.japanese) "確定" else "done" } else enterLabel)
         }
         else -> binding.customLayoutFloating.apply {

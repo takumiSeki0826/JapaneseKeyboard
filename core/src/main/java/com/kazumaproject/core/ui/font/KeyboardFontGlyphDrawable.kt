@@ -57,7 +57,8 @@ class KeyboardFontGlyphDrawable private constructor(
     }
 
     override fun draw(canvas: Canvas) {
-        val typeface = snapshot.typeface
+        // Icons whose vector artwork is Japanese text are drawn as text even without a custom font.
+        val typeface = snapshot.typeface ?: if (spec.drawAsText) Typeface.SANS_SERIF else null
         if (typeface == null) {
             drawDelegate(canvas)
             return
@@ -65,8 +66,13 @@ class KeyboardFontGlyphDrawable private constructor(
 
         val save = canvas.save()
         canvas.translate(bounds.left.toFloat(), bounds.top.toFloat())
-        canvas.scale(bounds.width() / spec.viewportWidth, bounds.height() / spec.viewportHeight)
-        canvas.clipRect(0f, 0f, spec.viewportWidth, spec.viewportHeight)
+        // Latin text must not be stretched to the icon's aspect ratio, so it is laid out in pixels.
+        val viewportWidth = if (spec.drawAsText) bounds.width().toFloat() else spec.viewportWidth
+        val viewportHeight = if (spec.drawAsText) bounds.height().toFloat() else spec.viewportHeight
+        if (!spec.drawAsText) {
+            canvas.scale(bounds.width() / spec.viewportWidth, bounds.height() / spec.viewportHeight)
+        }
+        canvas.clipRect(0f, 0f, viewportWidth, viewportHeight)
 
         val baseColor = resolvedTintColor ?: spec.defaultColor(context)
         val color = Color.argb(
@@ -77,14 +83,14 @@ class KeyboardFontGlyphDrawable private constructor(
         )
         spec.glyphs.forEach { glyph ->
             val viewportBounds = RectF(glyph.bounds).apply {
-                left *= spec.viewportWidth
-                right *= spec.viewportWidth
-                top *= spec.viewportHeight
-                bottom *= spec.viewportHeight
+                left *= viewportWidth
+                right *= viewportWidth
+                top *= viewportHeight
+                bottom *= viewportHeight
             }
             drawGlyph(
                 canvas, textPaint, glyph.text, viewportBounds, color, typeface, glyph.style,
-                explicitColorFilter,
+                explicitColorFilter, glyph.spaced,
             )
         }
         spec.decorations.forEach { decoration ->
@@ -222,6 +228,8 @@ class KeyboardFontGlyphDrawable private constructor(
             val text: String,
             val bounds: RectF,
             val style: Int = Typeface.NORMAL,
+            /** Draw each character as its own ink box: same size and baseline, even gaps between them. */
+            val spaced: Boolean = false,
         )
 
         internal data class Decoration(
@@ -241,6 +249,7 @@ class KeyboardFontGlyphDrawable private constructor(
             val glyphs: List<Glyph>,
             val decorations: List<Decoration> = emptyList(),
             val ink: Ink = Ink.KEYBOARD,
+            val drawAsText: Boolean = false,
         ) {
             fun defaultColor(context: Context): Int = when (ink) {
                 Ink.KEYBOARD -> androidx.core.content.ContextCompat.getColor(
@@ -258,19 +267,17 @@ class KeyboardFontGlyphDrawable private constructor(
             RectF(left, top, right, bottom)
 
         private fun glyph(text: String, left: Float, top: Float, right: Float, bottom: Float,
-                          style: Int = Typeface.NORMAL) = Glyph(
+                          style: Int = Typeface.NORMAL, spaced: Boolean = false) = Glyph(
             text,
             box(left, top, right, bottom),
             style,
+            spaced,
         )
 
-        private val kanaArrow = Decoration(
-            "M54.75,59.33l-2.45,2.38l0.01,-1.25l-4.54,0.01l0.01,1.28l-2.53,-2.36l2.47,-2.39l-0.02,1.23l4.53,-0.01l0.02,-1.25l2.52,2.35ZM54.44,59.36l-1.91,-1.82l-0.01,0.93l-5.1,0.01l0,-0.88l-1.82,1.8l1.87,1.77l-0,-0.93l5.11,-0.01l-0.02,0.96l1.87,-1.84Z",
-            fillType = Path.FillType.EVEN_ODD,
-        )
+        private const val KANA_SMALL_LABEL = "小゛゜"
 
         internal val specs: Map<Int, IconSpec> = buildMap {
-            put(R.drawable.henkan, IconSpec(96f, 46f, listOf(glyph("変換", 0.01f, 0.02f, 0.99f, 0.96f))))
+            put(R.drawable.henkan, IconSpec(96f, 46f, listOf(glyph("C", 0.10f, 0.10f, 0.90f, 0.90f)), drawAsText = true))
             put(R.drawable.katakana, IconSpec(100f, 100f, listOf(glyph("カタ", 0.16f, 0.28f, 0.84f, 0.72f))))
 
             val modeBox = box(0.14f, 0.27f, 0.86f, 0.73f)
@@ -297,16 +304,12 @@ class KeyboardFontGlyphDrawable private constructor(
             )))
 
             put(R.drawable.english_small, IconSpec(100f, 100f, listOf(glyph("a/A", 0.36f, 0.37f, 0.67f, 0.64f))))
-            val kanaGlyphs = listOf(
-                glyph("゛", 0.36f, 0.32f, 0.49f, 0.47f),
-                glyph("゜", 0.51f, 0.32f, 0.65f, 0.47f),
-                glyph("小", 0.34f, 0.51f, 0.47f, 0.68f),
-                glyph("大", 0.56f, 0.51f, 0.68f, 0.68f),
-            )
+            // iOS-style label for the dakuten / handakuten / small-letter key: one text run, one baseline.
+            val kanaGlyphs = listOf(glyph(KANA_SMALL_LABEL, 0.32f, 0.40f, 0.68f, 0.60f, spaced = true))
             put(R.drawable.kana_small, IconSpec(
-                100f, 100f, kanaGlyphs, decorations = listOf(kanaArrow), ink = Ink.BLACK
+                100f, 100f, kanaGlyphs, ink = Ink.BLACK, drawAsText = true
             ))
-            put(R.drawable.kana_small_custom, IconSpec(100f, 100f, kanaGlyphs, decorations = listOf(kanaArrow)))
+            put(R.drawable.kana_small_custom, IconSpec(100f, 100f, kanaGlyphs, drawAsText = true))
 
             put(R.drawable.number_small, IconSpec(100f, 100f, listOf(
                 glyph("()", 0.36f, 0.38f, 0.52f, 0.62f),
@@ -323,16 +326,8 @@ class KeyboardFontGlyphDrawable private constructor(
                 glyph("a/A", 0.03f, 0.08f, 0.97f, 0.80f),
             )))
             put(R.drawable.custom_key_kana_case_24, IconSpec(24f, 24f, listOf(
-                glyph("゛", 0.08f, 0.04f, 0.40f, 0.36f),
-                glyph("゜", 0.58f, 0.04f, 0.92f, 0.36f),
-                glyph("小", 0.07f, 0.70f, 0.32f, 0.93f),
-                glyph("大", 0.64f, 0.70f, 0.92f, 0.93f),
-            ), decorations = listOf(kanaArrow.copy(
-                scaleX = 0.75f,
-                scaleY = 0.75f,
-                translateX = -25.8f,
-                translateY = -24.5f,
-            ))))
+                glyph(KANA_SMALL_LABEL, 0.04f, 0.28f, 0.96f, 0.72f, spaced = true),
+            ), drawAsText = true))
 
             put(R.drawable.symbol, IconSpec(100f, 100f, listOf(glyph("§", 0.29f, 0.12f, 0.71f, 0.88f)), ink = Ink.BLACK))
             put(R.drawable.open_bracket, IconSpec(100f, 100f, listOf(glyph("(", 0.41f, 0.37f, 0.59f, 0.63f)), ink = Ink.BLACK))
@@ -415,6 +410,7 @@ class KeyboardFontGlyphDrawable private constructor(
             typeface: Typeface,
             style: Int = Typeface.NORMAL,
             colorFilter: ColorFilter? = null,
+            spaced: Boolean = false,
         ) {
             if (text.isEmpty() || region.width() <= 0f || region.height() <= 0f) return
             paint.color = color
@@ -422,6 +418,10 @@ class KeyboardFontGlyphDrawable private constructor(
             paint.typeface = Typeface.create(typeface, style)
             paint.textAlign = Paint.Align.LEFT
             paint.textSize = 100f
+            if (spaced && text.length > 1) {
+                drawSpacedRun(canvas, paint, text, region)
+                return
+            }
             val textBounds = Rect()
             paint.getTextBounds(text, 0, text.length, textBounds)
             val textWidth = textBounds.width().coerceAtLeast(1).toFloat()
@@ -432,6 +432,30 @@ class KeyboardFontGlyphDrawable private constructor(
             val x = region.centerX() - (textBounds.left + textBounds.right) / 2f
             val y = region.centerY() - (textBounds.top + textBounds.bottom) / 2f
             canvas.drawText(text, x, y, paint)
+        }
+
+        /**
+         * Draws [text] one character at a time at a single size and baseline, with an even gap
+         * between the ink boxes. The first character decides the vertical centering and the size limit.
+         */
+        private fun drawSpacedRun(canvas: Canvas, paint: Paint, text: String, region: RectF) {
+            val gapEm = 0.30f
+            val bounds = text.map { ch ->
+                Rect().also { paint.getTextBounds(ch.toString(), 0, 1, it) }
+            }
+            val totalWidth = bounds.sumOf { it.width() } + gapEm * 100f * (text.length - 1)
+            val first = bounds.first()
+            val scale = minOf(
+                region.width() / totalWidth.coerceAtLeast(1f),
+                region.height() / first.height().coerceAtLeast(1).toFloat(),
+            )
+            paint.textSize = (100f * scale).coerceAtLeast(1f)
+            var x = region.centerX() - totalWidth * scale / 2f
+            val baseline = region.centerY() - (first.top + first.bottom) * scale / 2f
+            text.forEachIndexed { i, ch ->
+                canvas.drawText(ch.toString(), x - bounds[i].left * scale, baseline, paint)
+                x += (bounds[i].width() + gapEm * 100f) * scale
+            }
         }
     }
 }

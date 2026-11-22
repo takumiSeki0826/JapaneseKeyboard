@@ -593,8 +593,7 @@ private fun configureQwertyPreview(
     qwertyView.setSpecialKeyVisibility(
         showCursors = appPreference.qwerty_show_cursor_buttons ?: false,
         showSwitchKey = appPreference.qwerty_show_ime_button ?: true,
-        showKutouten = appPreference.qwerty_show_kutouten_buttons ?: false,
-        showEmojiKey = appPreference.qwerty_show_emoji_button ?: false
+        showKutouten = appPreference.qwerty_show_kutouten_buttons ?: false
     )
     qwertyView.setRomajiEnglishSwitchKeyTextWithStyle(true)
     qwertyView.updateSymbolKeymapState(appPreference.qwerty_show_keymap_symbols ?: false)

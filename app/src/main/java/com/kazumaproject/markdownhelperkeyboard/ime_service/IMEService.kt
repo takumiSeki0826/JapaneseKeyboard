@@ -2195,6 +2195,15 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private val isRomajiShiftPressed: Boolean
         get() = hardKeyboardShiftPressd || softwareQwertyShiftPressed
 
+    /** Caps Lock only lasts for one display of the keyboard; reopening it starts unlocked. */
+    private fun releaseCapsLockOnKeyboardReopen() {
+        mainLayoutBinding?.qwertyView?.releaseShiftAndCapsLock()
+        floatingKeyboardBinding?.qwertyViewFloating?.releaseShiftAndCapsLock()
+        softwareQwertyShiftPressed = false
+        softwareQwertyCapsLockOn = false
+        customKeyboardShiftState = CustomKeyboardShiftState.OFF
+    }
+
     private fun resetSoftwareQwertyShiftAfterCompositionBoundary() {
         softwareQwertyShiftPressed = if (isDefaultRomajiHenkanMap) {
             softwareQwertyCapsLockOn
@@ -5623,6 +5632,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         stopSplitKeyboard()
         super.onStartInputView(editorInfo, restarting)
         flickInputPreviewCoordinator.cancel(restore = true)
+        releaseCapsLockOnKeyboardReopen()
         clearZeroQueryAllState(refresh = false)
         // The input view can restart without onStartInput() after returning from settings.
         // Re-read preferences that may change while the existing input session is retained.
@@ -5936,15 +5946,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 qwertyView.setSpecialKeyVisibility(
                     showCursors = qwertyShowCursorButtonsPreference ?: false,
                     showSwitchKey = qwertyShowIMEButtonPreference ?: true,
-                    showKutouten = qwertyShowKutoutenButtonsPreference ?: false,
-                    showEmojiKey = qwertyShowEmojiButtonPreference ?: false
+                    showKutouten = qwertyShowKutoutenButtonsPreference ?: false
                 )
                 qwertyView.setRomajiEnglishSwitchKeyTextWithStyle(true)
                 qwertyView.updateSymbolKeymapState(qwertyShowKeymapSymbolsPreference ?: false)
                 qwertyView.updateNumberKeyState(qwertyShowNumberButtonsPreference ?: false)
                 qwertyView.setPopUpViewState(qwertyShowPopupWindowPreference ?: true)
-                qwertyView.setSpaceUpFlickEnabled(qwertyRomajiSpaceFlickPreference)
-                qwertyView.setEnglishSpaceUpFlickEnabled(qwertyEnglishSpaceFlickPreference)
+                qwertyView.setSpaceUpFlickEnabled(false)
+                qwertyView.setEnglishSpaceUpFlickEnabled(false)
                 qwertyView.setFlickUpDetectionEnabled(qwertyEnableFlickUpPreference ?: false)
                 qwertyView.setFlickDownDetectionEnabled(qwertyEnableFlickDownPreference ?: false)
                 qwertyView.setNumberKeyFlickUpChars(qwertyNumberKeyFlickUpChars)
@@ -10548,6 +10557,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             numberEnabled = tenkeyKeymapGuideSettings.number
         )
         floatingKeyboardLayoutBinding.keyboardViewFloating.apply {
+            // TenKey resets its keys to the plain defaults from its own collector when the input mode
+            // changes (e.g. number -> Japanese), so refresh the composing-text icons after that.
+            setOnInputModeChangedListener { inputMode ->
+                currentInputModeForSession = inputMode
+                Handler(mainLooper).post {
+                    setTenkeyIconsInHenkanFloating(inputString.value, floatingKeyboardLayoutBinding)
+                }
+            }
             setOnFlickListener(object : FlickListener {
                 override fun onFlick(gestureType: GestureType, key: Key, char: Char?) {
                     activateSplitView(floatingKeyboardLayoutBinding.keyboardViewFloating)
@@ -10750,7 +10767,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     ) {
         currentInputModeForSession = inputMode
         if (switchTenkeyEnglishToQwertyIfNeeded(inputMode, mainView)) return
-        setTenkeyIconsInHenkan(inputString.value, mainView)
+        // TenKey resets its keys to the plain defaults from its own collector right after the mode
+        // changes, so refresh the composing-text icons once that has run.
+        Handler(mainLooper).post { setTenkeyIconsInHenkan(inputString.value, mainView) }
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -10976,10 +10995,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 if (switchTenkeyEnglishToQwertyIfNeeded(inputMode, mainView)) {
                     return@setOnInputModeChangedListener
                 }
-                if (floatingView != null) {
-                    setTenkeyIconsInHenkanFloating(inputString.value, floatingView)
-                } else {
-                    setTenkeyIconsInHenkan(inputString.value, mainView)
+                // See handleTenKeyInputModeChanged: refresh after TenKey's own key reset.
+                Handler(mainLooper).post {
+                    if (floatingView != null) {
+                        setTenkeyIconsInHenkanFloating(inputString.value, floatingView)
+                    } else {
+                        setTenkeyIconsInHenkan(inputString.value, mainView)
+                    }
                 }
             }
         }
@@ -17865,7 +17887,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     setSumireKeyboardSwitchNumberAndKatakanaKey(1)
                     if (qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji && currentInputModeForSession == InputMode.ModeJapanese) {
                         updateQwertyOnActiveSurface {
-                            setSpaceKeyText("変換")
+                            setSpaceKeyText("C")
                             setReturnKeyText("確定")
                         }
                     } else if ((qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY && currentInputModeForSession == InputMode.ModeEnglish) || qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji && currentInputModeForSession == InputMode.ModeEnglish) {
@@ -21560,7 +21582,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private fun getCandidateTabDisplayName(candidateTab: CandidateTab): String {
         return when (candidateTab) {
             CandidateTab.PREDICTION -> "予測"
-            CandidateTab.CONVERSION -> "変換"
+            CandidateTab.CONVERSION -> "C"
             CandidateTab.EISUKANA -> "英数カナ"
         }
     }
@@ -23343,15 +23365,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             setSpecialKeyVisibility(
                 showCursors = qwertyShowCursorButtonsPreference ?: false,
                 showSwitchKey = qwertyShowIMEButtonPreference ?: true,
-                showKutouten = qwertyShowKutoutenButtonsPreference ?: false,
-                showEmojiKey = qwertyShowEmojiButtonPreference ?: false
+                showKutouten = qwertyShowKutoutenButtonsPreference ?: false
             )
             setRomajiEnglishSwitchKeyTextWithStyle(true)
             updateSymbolKeymapState(qwertyShowKeymapSymbolsPreference ?: false)
             updateNumberKeyState(qwertyShowNumberButtonsPreference ?: false)
             setPopUpViewState(qwertyShowPopupWindowPreference ?: true)
-            setSpaceUpFlickEnabled(qwertyRomajiSpaceFlickPreference)
-            setEnglishSpaceUpFlickEnabled(qwertyEnglishSpaceFlickPreference)
+            setSpaceUpFlickEnabled(false)
+            setEnglishSpaceUpFlickEnabled(false)
             setFlickUpDetectionEnabled(qwertyEnableFlickUpPreference ?: false)
             setFlickDownDetectionEnabled(qwertyEnableFlickDownPreference ?: false)
             setNumberKeyFlickUpChars(qwertyNumberKeyFlickUpChars)
@@ -25619,16 +25640,19 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             mainView.keyboardView.apply {
                 when (currentInputMode.value) {
                     is InputMode.ModeJapanese -> {
+                        // Composing text keeps the convert key and the dakuten/small key, as in updateUIinHenkan.
                         setSideKeySpaceDrawable(
-                            cachedSpaceDrawable
+                            if (insertString.isNotEmpty()) cachedHenkanDrawable else cachedSpaceDrawable
                         )
                         setSideKeyPreviousState(true)
                         if (insertString.isNotEmpty()) {
-                            if (insertString.isNotEmpty() && insertString.last()
-                                    .isLatinAlphabet()
-                            ) {
+                            if (insertString.last().isLatinAlphabet()) {
                                 setBackgroundSmallLetterKey(
                                     cachedEnglishDrawable
+                                )
+                            } else if (insertString.last().isHiragana()) {
+                                setBackgroundSmallLetterKey(
+                                    cachedKanaDrawable
                                 )
                             } else {
                                 setBackgroundSmallLetterKey(
@@ -25656,29 +25680,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                     is InputMode.ModeNumber -> {
                         setSideKeyPreviousState(true)
-                        if (insertString.isNotEmpty()) {
-                            setSideKeySpaceDrawable(
-                                cachedHenkanDrawable
-                            )
-                            if (insertString.last().isHiragana()) {
-                                setBackgroundSmallLetterKey(
-                                    cachedKanaDrawable
-                                )
-                            } else {
-                                setBackgroundSmallLetterKey(
-                                    isLanguageEnable = tenkeyShowIMEButtonPreference ?: true,
-                                    isEnglish = false
-                                )
-                            }
-                        } else {
-                            setSideKeySpaceDrawable(
-                                cachedSpaceDrawable
-                            )
-                            setBackgroundSmallLetterKey(
-                                isLanguageEnable = tenkeyShowIMEButtonPreference ?: true,
-                                isEnglish = false
-                            )
-                        }
+                        // The number keyboard shows the real keys (e.g. ()[]), never the Japanese-mode globe/space icons.
+                        setNumberSmallKeyPresentation()
+                        setSideKeySpaceDrawable(
+                            if (insertString.isNotEmpty()) cachedHenkanDrawable else cachedSpaceDrawable
+                        )
                     }
                 }
             }
@@ -25714,14 +25720,19 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             Timber.d("setTenkeyIconsInHenkanFloating: ${currentInputMode.value}")
             when (currentInputMode.value) {
                 is InputMode.ModeJapanese -> {
+                    // Composing text keeps the convert key and the dakuten/small key, as in updateUIinHenkan.
                     setSideKeySpaceDrawable(
-                        cachedSpaceDrawable
+                        if (insertString.isNotEmpty()) cachedHenkanDrawable else cachedSpaceDrawable
                     )
                     setSideKeyPreviousState(true)
                     if (insertString.isNotEmpty()) {
-                        if (insertString.isNotEmpty() && insertString.last().isLatinAlphabet()) {
+                        if (insertString.last().isLatinAlphabet()) {
                             setBackgroundSmallLetterKey(
                                 cachedEnglishDrawable
+                            )
+                        } else if (insertString.last().isHiragana()) {
+                            setBackgroundSmallLetterKey(
+                                cachedKanaDrawable
                             )
                         } else {
                             setBackgroundSmallLetterKey(
@@ -25749,29 +25760,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                 is InputMode.ModeNumber -> {
                     setSideKeyPreviousState(true)
-                    if (insertString.isNotEmpty()) {
-                        setSideKeySpaceDrawable(
-                            cachedHenkanDrawable
-                        )
-                        if (insertString.last().isHiragana()) {
-                            setBackgroundSmallLetterKey(
-                                cachedKanaDrawable
-                            )
-                        } else {
-                            setBackgroundSmallLetterKey(
-                                isLanguageEnable = tenkeyShowIMEButtonPreference ?: true,
-                                isEnglish = false
-                            )
-                        }
-                    } else {
-                        setSideKeySpaceDrawable(
-                            cachedSpaceDrawable
-                        )
-                        setBackgroundSmallLetterKey(
-                            isLanguageEnable = tenkeyShowIMEButtonPreference ?: true,
-                            isEnglish = false
-                        )
-                    }
+                    // The number keyboard shows the real keys (e.g. ()[]), never the Japanese-mode globe/space icons.
+                    setNumberSmallKeyPresentation()
+                    setSideKeySpaceDrawable(
+                        if (insertString.isNotEmpty()) cachedHenkanDrawable else cachedSpaceDrawable
+                    )
                 }
             }
         }
@@ -27453,10 +27446,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         reverseSpaceWidth: Boolean = false
     ) {
         val reverseRomajiSpace = reverseSpaceWidth && currentQwertyRomajiModeForSession
-        val englishSpace = if (reverseSpaceWidth && !currentQwertyRomajiModeForSession) "　" else " "
+        val englishSpace = " "
         clearZeroQueryAllState(refresh = false)
         val directSpace = if (reverseRomajiSpace) {
-            oppositeSpace(qwertyEnableZenkakuSpacePreference == true)
+            " "
         } else {
             englishSpace
         }
@@ -27556,9 +27549,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             val romajiMode = currentQwertyRomajiModeForSession
             Timber.d("handleSpaceKeyClickInQWERTY: $romajiMode")
             if (reverseRomajiSpace) {
-                commitText(oppositeSpace(qwertyEnableZenkakuSpacePreference == true), 1)
-            } else if (romajiMode && qwertyEnableZenkakuSpacePreference == true) {
-                handleSpaceKeyClick(false, insertString, suggestions, mainView)
+                commitText(" ", 1)
             } else {
                 setSpaceKeyActionEnglishAndNumberNotEmpty(insertString, englishSpace)
             }
@@ -27582,7 +27573,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         floatingKeyboardLayoutBinding: FloatingKeyboardLayoutBinding? = null
     ) {
         handleForceSpaceOrConvert(
-            space = "　",
+            space = " ",
             mainView = mainView,
             floatingKeyboardLayoutBinding = floatingKeyboardLayoutBinding
         )
@@ -28822,6 +28813,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                         else -> {}
                     }
+                } else {
+                    switchKeyboardFromGlobeKey(insertString, false)
                 }
             }
         } else {
@@ -28886,6 +28879,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                         else -> {}
                     }
+                } else {
+                    switchKeyboardFromGlobeKey(insertString, true)
                 }
             }
         } else {
@@ -28896,6 +28891,29 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 switchNextKeyboard()
             }
         }
+    }
+
+    /**
+     * 地球儀キー（濁点・小文字キーと兼用）の処理。未確定文字があれば確定してから次のキーボードへ切り替える。
+     */
+    private fun switchKeyboardFromGlobeKey(insertString: String, floating: Boolean) {
+        if (onKeyboardSwitchLongPressUp ||
+            qwertyMode.value == TenKeyQWERTYMode.Custom ||
+            tenkeyShowIMEButtonPreference != true
+        ) return
+        if (insertString.isNotEmpty()) {
+            val suggestions = suggestionAdapter?.suggestions ?: emptyList()
+            if (floating) {
+                floatingKeyboardBinding?.let {
+                    handleNonEmptyInputEnterKeyFloating(suggestions, it, insertString)
+                }
+            } else {
+                mainLayoutBinding?.let {
+                    handleNonEmptyInputEnterKey(suggestions, it, insertString)
+                }
+            }
+        }
+        switchNextKeyboard()
     }
 
     // 2) 次のモードに切り替える関数
@@ -28945,8 +28963,17 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             KeyboardType.CUSTOM, KeyboardType.SPLIT -> {}
         }
 
+        // 地球儀キーで英字へ切り替えるときは、数字・記号画面ではなく必ず英字(QWERTY)にする
+        if (nextType == KeyboardType.QWERTY && qwertyMode.value == TenKeyQWERTYMode.Number) {
+            _tenKeyQWERTYMode.update { TenKeyQWERTYMode.TenKeyQWERTY }
+        }
+
         // 統一された showKeyboard 関数を呼び出す
         showKeyboard(nextType, source = "switchNextKeyboard.display")
+        if (nextType == KeyboardType.QWERTY) {
+            // フローティング側の QWERTY は showKeyboard で初期化されないため、ここで必ず英字配列に戻す
+            updateQwertyOnActiveSurface { resetQWERTYKeyboard(editorEnterLabel(japanese = false)) }
+        }
 
         currentKeyboardOrder = nextResolution.resolvedIndex ?: 0
         if (enableShowLastShownKeyboardInRestart == true) {
@@ -28983,10 +29010,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (insertString.isNotEmpty()) {
             val insertPosition = insertString.last()
             insertPosition.let { c ->
-                if (!c.isHiragana()) {
+                if (c.isLatinAlphabet()) {
                     c.getDakutenSmallChar()?.let { dakutenChar ->
                         setStringBuilderForConvertStringInHiragana(dakutenChar, sb, insertString)
                     }
+                } else {
+                    switchKeyboardFromGlobeKey(insertString, false)
                 }
             }
         } else {
@@ -29005,12 +29034,16 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (insertString.isNotEmpty()) {
             val insertPosition = insertString.last()
             insertPosition.let { c ->
-                if (!c.isHiragana()) {
+                if (c.isLatinAlphabet()) {
                     c.getDakutenSmallChar()?.let { dakutenChar ->
                         setStringBuilderForConvertStringInHiragana(dakutenChar, sb, insertString)
                     }
+                } else {
+                    switchKeyboardFromGlobeKey(insertString, true)
                 }
             }
+        } else {
+            switchKeyboardFromGlobeKey(insertString, true)
         }
     }
 
@@ -29269,13 +29302,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             stringInTail.set("")
         } else {
             mainLayoutBinding?.let { mainView ->
-                commitText(
-                    resolveEmptySpaceForCurrentMode(
-                        isFlick = isFlick,
-                        currentInputMode = currentTenkeyInputMode(mainView)
-                    ),
-                    1
-                )
+                commitText(" ", 1)
             }
         }
         _inputString.update { "" }
@@ -29286,18 +29313,6 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             suggestionClickNum = 0
             suggestionAdapter?.updateHighlightPosition(-1)
         }
-    }
-
-    private fun resolveEmptySpaceForCurrentMode(
-        isFlick: Boolean,
-        currentInputMode: InputMode
-    ): String {
-        return resolveEmptySpaceForCurrentMode(
-            isCustomLayoutDirectMode = isCustomLayoutDirectMode,
-            customDirectModeSpaceHankakuPreference = customDirectModeSpaceHankakuPreference,
-            isFlick = isFlick,
-            currentInputMode = currentInputMode
-        )
     }
 
     private var isFirstClickHasStringTail = false

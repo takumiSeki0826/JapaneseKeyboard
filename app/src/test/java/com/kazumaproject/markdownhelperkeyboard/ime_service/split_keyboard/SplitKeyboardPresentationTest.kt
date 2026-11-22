@@ -69,7 +69,7 @@ class SplitKeyboardPresentationTest {
             }
             TenKeyQWERTYMode.TenKeyQWERTY, TenKeyQWERTYMode.TenKeyQWERTYRomaji -> {
                 val state = binding.qwertyViewFloating.snapshotUiState()
-                assertEquals(if (japanese) { if (composing) "変換" else "空白" } else "space", state.spaceKeyText)
+                assertEquals(if (japanese) { if (composing) "C" else "空白" } else "space", state.spaceKeyText)
                 assertEquals(if (composing) { if (japanese) "確定" else "done" } else { if (japanese) "検索" else "search" }, state.enterKeyText)
             }
             else -> {

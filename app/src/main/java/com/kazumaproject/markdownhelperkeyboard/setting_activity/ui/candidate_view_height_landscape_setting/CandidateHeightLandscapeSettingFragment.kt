@@ -881,7 +881,7 @@ class CandidateHeightLandscapeSettingFragment : Fragment() {
     private fun CandidateTab.previewLabel(): String =
         when (this) {
             CandidateTab.PREDICTION -> "予測"
-            CandidateTab.CONVERSION -> "変換"
+            CandidateTab.CONVERSION -> "C"
             CandidateTab.EISUKANA -> "英数カナ"
         }
 

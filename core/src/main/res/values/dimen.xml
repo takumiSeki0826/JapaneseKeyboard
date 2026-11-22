@@ -62,4 +62,6 @@
     <dimen name="qwerty_side_key_elevation_size">1dp</dimen>
 
     <dimen name="grid_spacing">0dp</dimen>
+    <!-- Opacity of the inactive side of the あ/1 input mode switch key (1.0 = same as the active side). -->
+    <item name="input_mode_switch_idle_alpha" format="float" type="dimen">0.70</item>
 </resources>

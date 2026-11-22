@@ -10,8 +10,7 @@
     <string name="action_space">空白</string>
     <string name="action_commit_and_insert_space">確定＋半角スペース</string>
     <string name="action_force_half_width_space">半角スペース</string>
-    <string name="action_force_full_width_space">全角スペース</string>
-    <string name="action_convert">変換</string>
+    <string name="action_convert">C</string>
     <string name="action_enter">エンター</string>
     <string name="action_new_line">改行</string>
     <string name="action_paste">貼り付け</string>
