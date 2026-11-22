@@ -90,7 +90,7 @@ class KeyboardFontGlyphDrawable private constructor(
             }
             drawGlyph(
                 canvas, textPaint, glyph.text, viewportBounds, color, typeface, glyph.style,
-                explicitColorFilter,
+                explicitColorFilter, glyph.spaced,
             )
         }
         spec.decorations.forEach { decoration ->
@@ -228,6 +228,8 @@ class KeyboardFontGlyphDrawable private constructor(
             val text: String,
             val bounds: RectF,
             val style: Int = Typeface.NORMAL,
+            /** Draw each character as its own ink box: same size and baseline, even gaps between them. */
+            val spaced: Boolean = false,
         )
 
         internal data class Decoration(
@@ -265,11 +267,14 @@ class KeyboardFontGlyphDrawable private constructor(
             RectF(left, top, right, bottom)
 
         private fun glyph(text: String, left: Float, top: Float, right: Float, bottom: Float,
-                          style: Int = Typeface.NORMAL) = Glyph(
+                          style: Int = Typeface.NORMAL, spaced: Boolean = false) = Glyph(
             text,
             box(left, top, right, bottom),
             style,
+            spaced,
         )
+
+        private const val KANA_SMALL_LABEL = "小゛゜"
 
         internal val specs: Map<Int, IconSpec> = buildMap {
             put(R.drawable.henkan, IconSpec(96f, 46f, listOf(glyph("C", 0.10f, 0.10f, 0.90f, 0.90f)), drawAsText = true))
@@ -299,12 +304,8 @@ class KeyboardFontGlyphDrawable private constructor(
             )))
 
             put(R.drawable.english_small, IconSpec(100f, 100f, listOf(glyph("a/A", 0.36f, 0.37f, 0.67f, 0.64f))))
-            // iOS-style single-line label for the dakuten / handakuten / small-letter key.
-            val kanaGlyphs = listOf(
-                glyph("小", 0.29f, 0.40f, 0.49f, 0.62f),
-                glyph("゛", 0.51f, 0.35f, 0.60f, 0.50f),
-                glyph("゜", 0.62f, 0.35f, 0.71f, 0.50f),
-            )
+            // iOS-style label for the dakuten / handakuten / small-letter key: one text run, one baseline.
+            val kanaGlyphs = listOf(glyph(KANA_SMALL_LABEL, 0.32f, 0.40f, 0.68f, 0.60f, spaced = true))
             put(R.drawable.kana_small, IconSpec(
                 100f, 100f, kanaGlyphs, ink = Ink.BLACK, drawAsText = true
             ))
@@ -325,9 +326,7 @@ class KeyboardFontGlyphDrawable private constructor(
                 glyph("a/A", 0.03f, 0.08f, 0.97f, 0.80f),
             )))
             put(R.drawable.custom_key_kana_case_24, IconSpec(24f, 24f, listOf(
-                glyph("小", 0.06f, 0.30f, 0.44f, 0.70f),
-                glyph("゛", 0.50f, 0.22f, 0.70f, 0.46f),
-                glyph("゜", 0.74f, 0.22f, 0.94f, 0.46f),
+                glyph(KANA_SMALL_LABEL, 0.04f, 0.28f, 0.96f, 0.72f, spaced = true),
             ), drawAsText = true))
 
             put(R.drawable.symbol, IconSpec(100f, 100f, listOf(glyph("§", 0.29f, 0.12f, 0.71f, 0.88f)), ink = Ink.BLACK))
@@ -411,6 +410,7 @@ class KeyboardFontGlyphDrawable private constructor(
             typeface: Typeface,
             style: Int = Typeface.NORMAL,
             colorFilter: ColorFilter? = null,
+            spaced: Boolean = false,
         ) {
             if (text.isEmpty() || region.width() <= 0f || region.height() <= 0f) return
             paint.color = color
@@ -418,6 +418,10 @@ class KeyboardFontGlyphDrawable private constructor(
             paint.typeface = Typeface.create(typeface, style)
             paint.textAlign = Paint.Align.LEFT
             paint.textSize = 100f
+            if (spaced && text.length > 1) {
+                drawSpacedRun(canvas, paint, text, region)
+                return
+            }
             val textBounds = Rect()
             paint.getTextBounds(text, 0, text.length, textBounds)
             val textWidth = textBounds.width().coerceAtLeast(1).toFloat()
@@ -428,6 +432,30 @@ class KeyboardFontGlyphDrawable private constructor(
             val x = region.centerX() - (textBounds.left + textBounds.right) / 2f
             val y = region.centerY() - (textBounds.top + textBounds.bottom) / 2f
             canvas.drawText(text, x, y, paint)
+        }
+
+        /**
+         * Draws [text] one character at a time at a single size and baseline, with an even gap
+         * between the ink boxes. The first character decides the vertical centering and the size limit.
+         */
+        private fun drawSpacedRun(canvas: Canvas, paint: Paint, text: String, region: RectF) {
+            val gapEm = 0.30f
+            val bounds = text.map { ch ->
+                Rect().also { paint.getTextBounds(ch.toString(), 0, 1, it) }
+            }
+            val totalWidth = bounds.sumOf { it.width() } + gapEm * 100f * (text.length - 1)
+            val first = bounds.first()
+            val scale = minOf(
+                region.width() / totalWidth.coerceAtLeast(1f),
+                region.height() / first.height().coerceAtLeast(1).toFloat(),
+            )
+            paint.textSize = (100f * scale).coerceAtLeast(1f)
+            var x = region.centerX() - totalWidth * scale / 2f
+            val baseline = region.centerY() - (first.top + first.bottom) * scale / 2f
+            text.forEachIndexed { i, ch ->
+                canvas.drawText(ch.toString(), x - bounds[i].left * scale, baseline, paint)
+                x += (bounds[i].width() + gapEm * 100f) * scale
+            }
         }
     }
 }
