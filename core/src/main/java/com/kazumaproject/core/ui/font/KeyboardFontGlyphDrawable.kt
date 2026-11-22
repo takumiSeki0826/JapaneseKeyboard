@@ -300,7 +300,11 @@ class KeyboardFontGlyphDrawable private constructor(
 
             put(R.drawable.english_small, IconSpec(100f, 100f, listOf(glyph("a/A", 0.36f, 0.37f, 0.67f, 0.64f))))
             // iOS-style single-line label for the dakuten / handakuten / small-letter key.
-            val kanaGlyphs = listOf(glyph("小゛゜", 0.14f, 0.30f, 0.86f, 0.70f))
+            val kanaGlyphs = listOf(
+                glyph("小", 0.29f, 0.40f, 0.49f, 0.62f),
+                glyph("゛", 0.51f, 0.35f, 0.60f, 0.50f),
+                glyph("゜", 0.62f, 0.35f, 0.71f, 0.50f),
+            )
             put(R.drawable.kana_small, IconSpec(
                 100f, 100f, kanaGlyphs, ink = Ink.BLACK, drawAsText = true
             ))
@@ -321,7 +325,9 @@ class KeyboardFontGlyphDrawable private constructor(
                 glyph("a/A", 0.03f, 0.08f, 0.97f, 0.80f),
             )))
             put(R.drawable.custom_key_kana_case_24, IconSpec(24f, 24f, listOf(
-                glyph("小゛゜", 0.04f, 0.28f, 0.96f, 0.72f),
+                glyph("小", 0.06f, 0.30f, 0.44f, 0.70f),
+                glyph("゛", 0.50f, 0.22f, 0.70f, 0.46f),
+                glyph("゜", 0.74f, 0.22f, 0.94f, 0.46f),
             ), drawAsText = true))
 
             put(R.drawable.symbol, IconSpec(100f, 100f, listOf(glyph("§", 0.29f, 0.12f, 0.71f, 0.88f)), ink = Ink.BLACK))
