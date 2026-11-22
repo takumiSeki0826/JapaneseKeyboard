@@ -505,7 +505,7 @@ object KeyboardDefaultLayouts {
     )
 
     private val spaceConvertStates = listOf(
-        FlickAction.Action(KeyAction.Space, "空白"), FlickAction.Action(KeyAction.Convert, "Convert")
+        FlickAction.Action(KeyAction.Space, "空白"), FlickAction.Action(KeyAction.Convert, "C")
     )
 
     private val spaceConvertStatesCursor = listOf(
@@ -513,7 +513,7 @@ object KeyboardDefaultLayouts {
             KeyAction.Space,
             label = "空白",
             drawableResId = com.kazumaproject.core.R.drawable.baseline_space_bar_24
-        ), FlickAction.Action(KeyAction.Convert, "Convert")
+        ), FlickAction.Action(KeyAction.Convert, "C")
     )
 
     private val enterKeyStatesCursor = listOf(

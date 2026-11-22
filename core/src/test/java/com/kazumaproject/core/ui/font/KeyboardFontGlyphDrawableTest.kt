@@ -32,7 +32,7 @@ class KeyboardFontGlyphDrawableTest {
         get() = ApplicationProvider.getApplicationContext()
 
     private val expectedLabels = mapOf(
-        R.drawable.henkan to listOf("Convert"),
+        R.drawable.henkan to listOf("C"),
         R.drawable.katakana to listOf("カタ"),
         R.drawable.input_mode_english_custom to listOf("ABC"),
         R.drawable.input_mode_japanese_select_custom to listOf("あいう"),

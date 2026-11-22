@@ -82,7 +82,7 @@ class DynamicSumireSpecialKeyTapOverrideDisplayTest {
             keyId = "space_convert_key",
             stateIndex = 1,
             expectedAction = KeyAction.Convert,
-            expectedLabel = "Convert",
+            expectedLabel = "C",
             expectedDrawableResId = null
         )
         assertSpaceConvertFallbackMapIsPreserved(result.layout, KeyAction.Convert)

@@ -17875,7 +17875,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     setSumireKeyboardSwitchNumberAndKatakanaKey(1)
                     if (qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji && currentInputModeForSession == InputMode.ModeJapanese) {
                         updateQwertyOnActiveSurface {
-                            setSpaceKeyText("Convert")
+                            setSpaceKeyText("C")
                             setReturnKeyText("確定")
                         }
                     } else if ((qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY && currentInputModeForSession == InputMode.ModeEnglish) || qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji && currentInputModeForSession == InputMode.ModeEnglish) {

@@ -272,7 +272,7 @@ class KeyboardFontGlyphDrawable private constructor(
         )
 
         internal val specs: Map<Int, IconSpec> = buildMap {
-            put(R.drawable.henkan, IconSpec(96f, 46f, listOf(glyph("Convert", 0.01f, 0.02f, 0.99f, 0.96f)), drawAsText = true))
+            put(R.drawable.henkan, IconSpec(96f, 46f, listOf(glyph("C", 0.01f, 0.02f, 0.99f, 0.96f)), drawAsText = true))
             put(R.drawable.katakana, IconSpec(100f, 100f, listOf(glyph("カタ", 0.16f, 0.28f, 0.84f, 0.72f))))
 
             val modeBox = box(0.14f, 0.27f, 0.86f, 0.73f)
