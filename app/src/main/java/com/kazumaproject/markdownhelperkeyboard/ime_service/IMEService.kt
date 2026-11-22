@@ -10153,6 +10153,27 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             inputMode = customKeyboardMode.name
         )
         flickView.setKeyboard(createSumireKeyboardLayout(), KeyHitTestMode.NEAREST_KEY)
+        reapplyComposingDynamicKeyStates(flickView)
+    }
+
+    /**
+     * setKeyboard() rebuilds the layout with every dynamic key in its default state. When the layout
+     * is rebuilt mid-composition (e.g. coming back from the number keyboard), restore the states that
+     * were set for the composing text so the dakuten/convert keys stay in place of the globe/space keys.
+     */
+    private fun reapplyComposingDynamicKeyStates(flickView: FlickKeyboardView) {
+        val composing = inputString.value
+        if (composing.isEmpty() || customKeyboardMode != KeyboardInputMode.HIRAGANA) return
+        // The number keyboard resets these indices while it is shown, so derive them again
+        // the same way the composing-text UI update does for Japanese input.
+        currentEnterKeyIndex = 5
+        currentSpaceKeyIndex = 1
+        currentKatakanaKeyIndex = 1
+        currentDakutenKeyIndex = if (composing.last().getDakutenSmallChar() != null) 1 else 0
+        flickView.updateDynamicKey("enter_key", currentEnterKeyIndex)
+        flickView.updateDynamicKey("dakuten_toggle_key", currentDakutenKeyIndex)
+        flickView.updateDynamicKey("space_convert_key", currentSpaceKeyIndex)
+        flickView.updateDynamicKey("katakana_toggle_key", currentKatakanaKeyIndex)
     }
 
     private fun setNumberLayoutTo(flickView: FlickKeyboardView) {
