@@ -15,11 +15,13 @@ import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
 import android.util.TypedValue
+import android.view.Gravity
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
 import android.widget.TextView
@@ -52,6 +54,7 @@ import com.kazumaproject.data.emoticon.Emoticon
 import com.kazumaproject.data.emoticon.EmoticonCategory
 import com.kazumaproject.data.symbol.Symbol
 import com.kazumaproject.data.symbol.SymbolCategory
+import com.kazumaproject.domain.EmojiSearchIndex
 import com.kazumaproject.domain.EmojiSkinToneSupport
 import com.kazumaproject.listeners.ClipboardHistoryToggleListener
 import com.kazumaproject.listeners.ClipboardItemLongClickListener
@@ -82,6 +85,20 @@ class CustomSymbolKeyboardView @JvmOverloads constructor(
     // View References for functional keys
     private val returnButton: ShapeableImageView
     private val deleteButton: ShapeableImageView
+
+    // --- 絵文字検索（英語）。パネル内に簡易QWERTYを持ち、IME本体には触れない ---
+    private val searchBar: View
+    private val searchField: TextView
+    private val searchPanel: View
+    private val searchQueryText: TextView
+    private val searchCloseButton: ImageView
+    private val searchResultsRecycler: RecyclerView
+    private val searchKeyboard: LinearLayout
+    private val searchAdapter = SymbolAdapter()
+    private val searchQuery = StringBuilder()
+    private var emojiSearchIndex: EmojiSearchIndex? = null
+    private var searchJob: Job? = null
+    private var searchActive = false
 
     // Theme Colors (Default values)
     private var themeBackgroundColor: Int = Color.WHITE
@@ -147,6 +164,13 @@ class CustomSymbolKeyboardView @JvmOverloads constructor(
         recycler = findViewById(R.id.symbol_candidate_recycler_view)
         returnButton = findViewById(R.id.return_jp_keyboard_button)
         deleteButton = findViewById(R.id.symbol_keyboard_delete_key)
+        searchBar = findViewById(R.id.emoji_search_bar)
+        searchField = findViewById(R.id.emoji_search_field)
+        searchPanel = findViewById(R.id.emoji_search_panel)
+        searchQueryText = findViewById(R.id.emoji_search_query)
+        searchCloseButton = findViewById(R.id.emoji_search_close)
+        searchResultsRecycler = findViewById(R.id.emoji_search_results)
+        searchKeyboard = findViewById(R.id.emoji_search_keyboard)
         KeyboardFontGlyphDrawable.setImageResource(
             returnButton,
             com.kazumaproject.core.R.drawable.language_japanese_kana_24px,
@@ -180,12 +204,19 @@ class CustomSymbolKeyboardView @JvmOverloads constructor(
         }
 
         symbolAdapter.setOnItemLongClickListener { str, pos, anchor ->
-            if (
-                currentMode == SymbolMode.EMOJI &&
-                !isHistoryCategorySelected() &&
-                EmojiSkinToneSupport.hasSkinToneVariants(str)
-            ) {
-                showSkinTonePopup(str, anchor)
+            if (currentMode == SymbolMode.EMOJI) {
+                // 連続一覧: 先頭が「履歴」の見出しなら、履歴の絵文字は位置 1..件数
+                val historyIndex = pos - 1
+                if (historyEmojiList.isNotEmpty() && historyIndex in historyEmojiList.indices) {
+                    itemLongClickListener?.onLongClick(
+                        ClickedSymbol(mode = currentMode, symbol = str),
+                        position = historyIndex
+                    )
+                    historyEmojiList = historyEmojiList.toMutableList().apply { removeAt(historyIndex) }
+                    updateSymbolsForCategory(0)
+                } else if (EmojiSkinToneSupport.hasSkinToneVariants(str)) {
+                    showSkinTonePopup(str, anchor)
+                }
                 return@setOnItemLongClickListener
             }
 
@@ -259,8 +290,11 @@ class CustomSymbolKeyboardView @JvmOverloads constructor(
             setOnClickListener(null)
         }
 
+        setupEmojiSearch()
+
         modeTab.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
+                closeSearch()
                 currentMode = SymbolMode.entries[tab?.position ?: 0]
                 symbolAdapter.setKeyboardFont(keyboardFontSnapshot, currentMode != SymbolMode.EMOJI)
                 buildCategoryTabs()
@@ -598,6 +632,7 @@ class CustomSymbolKeyboardView @JvmOverloads constructor(
     )
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (searchActive) return super.dispatchTouchEvent(ev)
         val loc = IntArray(2).also { recycler.getLocationOnScreen(it) }
         val y = ev.rawY
         if (y >= loc[1] && y <= loc[1] + recycler.height) {
@@ -895,6 +930,7 @@ class CustomSymbolKeyboardView @JvmOverloads constructor(
     }
 
     private fun updateSymbolsForCategory(index: Int) {
+        updateTopBar()
         KeyboardFontApplicator.applyToTextViews(modeTab, keyboardFontSnapshot) { true }
         KeyboardFontApplicator.applyToTextViews(categoryTab, keyboardFontSnapshot) { true }
         symbolAdapter.setKeyboardFont(keyboardFontSnapshot, currentMode != SymbolMode.EMOJI)
@@ -929,22 +965,7 @@ class CustomSymbolKeyboardView @JvmOverloads constructor(
                         recycler.adapter = symbolAdapter
                         gridLM.spanSizeLookup = GridLayoutManager.DefaultSpanSizeLookup()
                         val listForPaging = when (currentMode) {
-                            SymbolMode.EMOJI -> {
-                                val hasHistory = historyEmojiList.isNotEmpty()
-                                if (hasHistory && index == 0) historyEmojiList
-                                else {
-                                    val adj = index - if (hasHistory) 1 else 0
-                                    emojiMap.keys.elementAtOrNull(adj)
-                                        ?.let {
-                                            emojiMap[it]?.map { e ->
-                                                EmojiSkinToneSupport.withSkinTone(
-                                                    e.symbol,
-                                                    this@CustomSymbolKeyboardView.defaultEmojiSkinTone
-                                                )
-                                            }
-                                        } ?: emptyList()
-                                }
-                            }
+                            SymbolMode.EMOJI -> buildContinuousEmojiList()
 
                             SymbolMode.EMOTICON -> {
                                 val hasHistory = historyEmoticonList.isNotEmpty()
@@ -979,8 +1000,7 @@ class CustomSymbolKeyboardView @JvmOverloads constructor(
                             else -> symbolAdapter.setItemMargins(4, 3, context)
                         }
 
-                        symbolAdapter.showSkinToneIndicators =
-                            currentMode == SymbolMode.EMOJI && !isHistoryCategorySelected()
+                        symbolAdapter.showSkinToneIndicators = currentMode == SymbolMode.EMOJI
 
                         symbolAdapter.symbolTextSize = when (currentMode) {
                             SymbolMode.EMOJI -> {
@@ -999,6 +1019,13 @@ class CustomSymbolKeyboardView @JvmOverloads constructor(
                             else -> 5
                         }
                         gridLM.orientation = RecyclerView.VERTICAL
+                        if (currentMode == SymbolMode.EMOJI) {
+                            // 見出し行は1行ぶん全幅を使う
+                            gridLM.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                                override fun getSpanSize(position: Int): Int =
+                                    if (symbolAdapter.isHeader(position)) gridLM.spanCount else 1
+                            }
+                        }
 
                         Pager(
                             config = PagingConfig(pageSize = 100, enablePlaceholders = false),
@@ -1102,11 +1129,13 @@ class CustomSymbolKeyboardView @JvmOverloads constructor(
     }
 
     private fun selectPreviousCategory() {
+        if (currentMode == SymbolMode.EMOJI) return // 絵文字は1本の一覧なのでスワイプでは切り替えない
         val i = categoryTab.selectedTabPosition
         if (i > 0) categoryTab.getTabAt(i - 1)?.select()
     }
 
     private fun selectNextCategory() {
+        if (currentMode == SymbolMode.EMOJI) return
         val i = categoryTab.selectedTabPosition
         val last = categoryTab.tabCount - 1
         if (i < last) categoryTab.getTabAt(i + 1)?.select()
@@ -1126,6 +1155,7 @@ class CustomSymbolKeyboardView @JvmOverloads constructor(
     }
 
     fun release() {
+        closeSearch()
         skinTonePopup?.dismiss()
         skinTonePopup = null
         pagingJob?.cancel()
@@ -1142,6 +1172,132 @@ class CustomSymbolKeyboardView @JvmOverloads constructor(
         clipboardHistoryToggleListener = null
         defaultEmojiSkinToneChangeListener = null
     }
+
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        // 親コンストラクタ中に呼ばれうるので、searchActive(既定false)だけを見る
+        if (visibility != View.VISIBLE && searchActive) closeSearch()
+    }
+
+    private fun setupEmojiSearch() {
+        searchQueryText.hint = "Search emoji"
+        searchQueryText.setTextColor(themeIconColor)
+        searchQueryText.setHintTextColor(ColorUtils.setAlphaComponent(themeIconColor, 128))
+        searchField.setTextColor(ColorUtils.setAlphaComponent(themeIconColor, 160))
+        searchField.compoundDrawableTintList = ColorStateList.valueOf(themeIconColor)
+        searchCloseButton.setColorFilter(themeIconColor)
+        searchResultsRecycler.apply {
+            layoutManager = GridLayoutManager(context, 2, RecyclerView.HORIZONTAL, false)
+            adapter = searchAdapter
+            itemAnimator = null
+        }
+        searchAdapter.setItemMargins(4, 3, context)
+        searchAdapter.symbolTextSize = 32f
+        searchAdapter.setOnItemClickListener { str ->
+            itemClickListener?.onClick(ClickedSymbol(mode = SymbolMode.EMOJI, symbol = str))
+        }
+        buildSearchKeyboard()
+        searchField.setOnClickListener { openSearch() }
+        searchCloseButton.setOnClickListener { closeSearch() }
+    }
+
+    /** 絵文字モードはカテゴリタブの代わりに検索欄を出す（一覧は見出し付きの1本）。他のモードは今までどおりタブ。 */
+    private fun updateTopBar() {
+        val emoji = currentMode == SymbolMode.EMOJI
+        searchBar.visibility = if (emoji) View.VISIBLE else View.GONE
+        categoryTab.visibility = if (emoji) View.GONE else View.VISIBLE
+    }
+
+    /** 履歴、各カテゴリの順に、見出し行を挟んで1本につなぐ。 */
+    private fun buildContinuousEmojiList(): List<String> = buildList {
+        if (historyEmojiList.isNotEmpty()) {
+            add(SymbolAdapter.HEADER_PREFIX + "履歴")
+            addAll(historyEmojiList)
+        }
+        emojiMap.forEach { (category, emojis) ->
+            if (emojis.isEmpty()) return@forEach
+            add(SymbolAdapter.HEADER_PREFIX + context.getString(emojiCategoryLabelRes.getValue(category)))
+            emojis.forEach { add(EmojiSkinToneSupport.withSkinTone(it.symbol, defaultEmojiSkinTone)) }
+        }
+    }
+
+    private fun openSearch() {
+        val index = emojiSearchIndex
+            ?: EmojiSearchIndex.loadFromAssets(context)?.also { emojiSearchIndex = it }
+        if (index == null) return // 同梱データなので通常は起きない。読めなければ何もしない
+        searchActive = true
+        searchQuery.setLength(0)
+        searchPanel.visibility = View.VISIBLE
+        refreshSearch()
+    }
+
+    private fun closeSearch() {
+        if (!searchActive) return
+        searchActive = false
+        searchJob?.cancel()
+        searchJob = null
+        searchQuery.setLength(0)
+        searchPanel.visibility = View.GONE
+    }
+
+    private fun onSearchKey(c: Char) {
+        searchQuery.append(c)
+        refreshSearch()
+    }
+
+    private fun onSearchBackspace() {
+        if (searchQuery.isEmpty()) return
+        searchQuery.setLength(searchQuery.length - 1)
+        refreshSearch()
+    }
+
+    private fun refreshSearch() {
+        searchQueryText.text = searchQuery
+        val available = emojiMap.values.flatten().map { it.symbol }
+        val results = emojiSearchIndex?.search(searchQuery.toString(), available)
+            ?.map { EmojiSkinToneSupport.withSkinTone(it, defaultEmojiSkinTone) }
+            ?: emptyList()
+        searchJob?.cancel()
+        searchJob = lifecycleOwner?.lifecycleScope?.launch {
+            Pager(
+                config = PagingConfig(pageSize = 100, enablePlaceholders = false),
+                pagingSourceFactory = { SymbolPagingSource(results) }
+            ).flow.collectLatest { searchAdapter.submitData(it) }
+        }
+    }
+
+    private fun buildSearchKeyboard() {
+        searchKeyboard.removeAllViews()
+        listOf("qwertyuiop", "asdfghjkl", "zxcvbnm").forEachIndexed { rowIndex, letters ->
+            val row = newSearchKeyRow()
+            letters.forEach { c -> row.addView(newSearchKey(c.toString()) { onSearchKey(c) }) }
+            if (rowIndex == 2) row.addView(newSearchKey("⌫", weight = 1.5f) { onSearchBackspace() })
+            searchKeyboard.addView(row)
+        }
+        val bottom = newSearchKeyRow()
+        bottom.addView(newSearchKey("space", weight = 6f) { onSearchKey(' ') })
+        searchKeyboard.addView(bottom)
+    }
+
+    private fun newSearchKeyRow() = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            dpToPx(44)
+        )
+    }
+
+    private fun newSearchKey(label: String, weight: Float = 1f, onClick: () -> Unit) =
+        TextView(context).apply {
+            text = label
+            gravity = Gravity.CENTER
+            textSize = 18f
+            setTextColor(themeIconColor)
+            setBackgroundResource(com.kazumaproject.core.R.drawable.symbol_keyboard_buttons_bg)
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, weight)
+                .apply { setMargins(dpToPx(2), dpToPx(3), dpToPx(2), dpToPx(3)) }
+            setOnClickListener { onClick() }
+        }
 
     private fun dpToPx(dp: Int): Int {
         return TypedValue.applyDimension(
