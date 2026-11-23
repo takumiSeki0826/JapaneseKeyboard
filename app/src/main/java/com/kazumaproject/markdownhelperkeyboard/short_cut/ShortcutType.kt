@@ -49,6 +49,12 @@ enum class ShortcutType(
         com.kazumaproject.core.R.drawable.language_24dp,
         description = "キーボード切替"
     ),
+    // Same action as the globe key on the keyboard (commits composing text, then switches keyboards).
+    GLOBE(
+        "globe",
+        com.kazumaproject.core.R.drawable.language_24dp,
+        description = "地球儀（英字に切替）"
+    ),
     KEYBOARD_LAYOUT_EDIT(
         "keyboard_layout_edit",
         com.kazumaproject.core.R.drawable.keyboard_24px,
