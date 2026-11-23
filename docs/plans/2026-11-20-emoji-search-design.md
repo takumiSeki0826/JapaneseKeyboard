@@ -91,10 +91,6 @@
 ```bash
 # 実用版を上書き（設定は残る。署名が同じパソコンのみ）
 ./gradlew :app:installLiteGroqDebug
-
-# 実用版と並べて入れる（別アプリ .dev。署名が違うパソコンでも可）
-./gradlew :app:installLiteGroqDebug -PdevApp
 ```
 
 - Groq の音声入力を使うには、`local.properties` に `groq.api.key=...` が要る（git には入らない）。
-- `.dev` 版は別アプリなので、マイクの許可・設定は別になる。
